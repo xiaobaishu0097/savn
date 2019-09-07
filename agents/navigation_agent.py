@@ -1,5 +1,5 @@
 import torch
-from utils.net_util import gpuify
+from utils.net_util import gpuify, toFloatTensor
 from models.model_io import ModelInput
 
 from .agent import ThorAgent
@@ -29,7 +29,18 @@ class NavigationAgent(ThorAgent):
         else:
             model_input.state = self.episode.current_frame
         model_input.hidden = self.hidden
-        model_input.target_class_embedding = self.episode.glove_embedding
+
+        current_pos = '{}|{}|{}|{}|{}|{}'.format(
+            self.environment.scene_name,
+            self.episode.target_object,
+            self.episode.environment.controller.state.position()['x'],
+            self.episode.environment.controller.state.position()['z'],
+            self.episode.environment.controller.state.rotation,
+            self.episode.environment.controller.state.horizon
+        )
+
+        # model_input.target_class_embedding = self.episode.glove_embedding
+        model_input.target_class_embedding = toFloatTensor(self.episode.glove_reader[current_pos][()], self.gpu_id)
         model_input.action_probs = self.last_action_probs
 
         return model_input, self.model.forward(model_input, model_options)

@@ -67,7 +67,10 @@ class ThorAgentState:
             round(self.horizon)
         )
         """
-        return "{:0.2f}|{:0.2f}|{:d}|{:d}".format(
+        # return "{:0.2f}|{:0.2f}|{:d}|{:d}".format(
+        #     self.x, self.z, round(self.rotation), round(self.horizon)
+        # )
+        return "{}|{}|{}|{}".format(
             self.x, self.z, round(self.rotation), round(self.horizon)
         )
 
@@ -236,11 +239,11 @@ class ExhaustiveBFSController(Controller):
     def teleport_to_state(self, state):
         """ Only use this method when we know the state is valid. """
         event = self.safe_teleport(state)
-        assert event.metadata["lastActionSuccess"]
+        assert event.metadata["lastActionSuccess"], '1'
         event = self.step(dict(action="Rotate", rotation=state.rotation))
-        assert event.metadata["lastActionSuccess"]
+        assert event.metadata["lastActionSuccess"], '2'
         event = self.step(dict(action="Look", horizon=state.horizon))
-        assert event.metadata["lastActionSuccess"]
+        assert event.metadata["lastActionSuccess"], '3'
 
         if self.debug_mode:
             # Sanity check that we have teleported to the correct state.
@@ -248,7 +251,7 @@ class ExhaustiveBFSController(Controller):
             if state != new_state:
                 print(state)
                 print(new_state)
-            assert state == new_state
+            assert state == new_state, '4'
         return event
 
     def get_state_from_event(self, event):
@@ -381,7 +384,7 @@ class ExhaustiveBFSController(Controller):
             if next_state != next_state_guess:
                 print(next_state)
                 print(next_state_guess)
-            assert next_state == next_state_guess
+            assert next_state == next_state_guess, '5'
 
             if self.enqueue_state(next_state) and self.make_graph:
                 self.add_edge(agent_state, next_state)
@@ -648,6 +651,7 @@ class OfflineControllerWithSmallRotation(BaseController):
                 ),
                 "r",
             )
+            # print(self.offline_data_dir, self.scene_name, self.images_file_name)
 
         self.state = self.get_full_state(
             **self.grid[0], rotation=random.choice(self.rotations)

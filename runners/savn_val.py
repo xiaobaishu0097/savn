@@ -79,6 +79,8 @@ def savn_val(
         start_time = time.time()
         new_episode(args, player, scenes, possible_targets, targets, glove=glove)
         player_start_state = copy.deepcopy(player.environment.controller.state)
+        if args.verbose:
+            print(player_start_state)
         player.episode.exploring = True
         total_reward = 0
         player.eps_len = 0
@@ -132,7 +134,7 @@ def savn_val(
         reward_dict["total_reward"] = total_reward
 
         spl, best_path_length = compute_spl(player, player_start_state)
-        bucketed_spl = get_bucketed_metrics(spl, best_path_length, player.success)
+        bucketed_spl = get_bucketed_metrics(spl, best_path_length, player.success, player.actions[-1], player.arrive)
 
         end_episode(
             player,

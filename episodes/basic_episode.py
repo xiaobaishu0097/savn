@@ -58,7 +58,7 @@ class BasicEpisode(Episode):
         """ Get the current position of the agent in the scene. """
         return self.environment.current_agent_position
 
-    def step(self, action_as_int):
+    def step(self, action_as_int, arrive):
 
         action = self.actions_list[action_as_int]
 
@@ -67,10 +67,10 @@ class BasicEpisode(Episode):
         else:
             self.done_count += 1
 
-        reward, terminal, action_was_successful = self.judge(action)
-        return reward, terminal, action_was_successful
+        reward, terminal, action_was_successful, arrive = self.judge(action, arrive)
+        return reward, terminal, action_was_successful, arrive
 
-    def judge(self, action):
+    def judge(self, action, arrive):
         """ Judge the last event. """
         reward = STEP_PENALTY
 
@@ -95,9 +95,17 @@ class BasicEpisode(Episode):
                     action_was_successful = True
                     break
         else:
+            # test for 100% accuracy of target detection
+            for id_ in self.task_data:
+                if self.environment.object_is_visible(id_):
+                    arrive = True
+                    reward = GOAL_SUCCESS_REWARD
+                    done = True
+                    action_was_successful = True
+                    break
             action_was_successful = self.environment.last_action_success
 
-        return reward, done, action_was_successful
+        return reward, done, action_was_successful, arrive
 
     # Set the target index.
     @property
@@ -152,9 +160,24 @@ class BasicEpisode(Episode):
             print("Scene", scene, "Navigating towards:", goal_object_type)
 
         self.glove_embedding = None
-        self.glove_embedding = toFloatTensor(
-            glove.glove_embeddings[goal_object_type][:], self.gpu_id
+
+        init_pos = '{}|{}|{}|{}|{}|{}'.format(
+            self.environment.controller.scene_name,
+            self.target_object,
+            self.environment.controller.state.position()['x'],
+            self.environment.controller.state.position()['z'],
+            self.environment.controller.state.rotation,
+            self.environment.controller.state.horizon
         )
+
+        self.glove_embedding = toFloatTensor(
+            glove.glove_embeddings[init_pos][()], self.gpu_id
+        )
+        self.glove_reader = glove.glove_embeddings
+
+        # self.glove_embedding = toFloatTensor(
+        #     glove.glove_embeddings[goal_object_type][:], self.gpu_id
+        # )
 
     def new_episode(
         self,

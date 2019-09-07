@@ -48,6 +48,8 @@ class ThorAgent:
         self.hidden_state_sz = args.hidden_state_sz
         self.action_space = args.action_space
 
+        self.arrive = False
+
     def sync_with_shared(self, shared_model):
         """ Sync with the shared model. """
         if self.gpu_id >= 0:
@@ -122,7 +124,7 @@ class ThorAgent:
         self.last_action_probs = prob
         entropy = -(log_prob * prob).sum(1)
         log_prob = log_prob.gather(1, Variable(action))
-        self.reward, self.done, self.info = self.episode.step(action[0, 0])
+        self.reward, self.done, self.info, self.arrive = self.episode.step(action[0, 0], self.arrive)
 
         if self.verbose:
             print(self.episode.actions_list[action])
@@ -174,6 +176,7 @@ class ThorAgent:
         self.done_action_targets = []
         self.learned_input = None
         self.learned_t = 0
+        self.arrive = False
         return self
 
     def preprocess_frame(self, frame):

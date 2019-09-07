@@ -186,7 +186,7 @@ def parse_arguments():
     parser.add_argument(
         "--glove_dim",
         type=int,
-        default=300,
+        default=10000,
         help="which dimension of the glove vector to use",
     )
     parser.add_argument(
@@ -204,13 +204,14 @@ def parse_arguments():
     parser.add_argument(
         "--offline_data_dir",
         type=str,
-        default="./data/thor_offline_data",
+        # default="./data/thor_offline_data",
+        default="./data/AI2Thor_Dataset_2.0.2",
         help="where dataset is stored.",
     )
     parser.add_argument(
         "--glove_dir",
         type=str,
-        default="./data/thor_glove",
+        default="./data/AI2Thor_Det_Features",
         help="where the glove files are stored.",
     )
     parser.add_argument(
@@ -270,6 +271,6 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    args.glove_file = "{}/glove_map{}d.hdf5".format(args.glove_dir, args.glove_dim)
+    # args.glove_file = "{}/glove_map{}d.hdf5".format(args.glove_dir, args.glove_dim)
 
     return args

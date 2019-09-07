@@ -182,12 +182,17 @@ def end_episode(
     res_queue.put(results)
 
 
-def get_bucketed_metrics(spl, best_path_length, success):
+def get_bucketed_metrics(spl, best_path_length, success, done, arrive):
     out = {}
     for i in [1, 5]:
         if best_path_length >= i:
             out["GreaterThan/{}/success".format(i)] = success
             out["GreaterThan/{}/spl".format(i)] = spl
+    if done == 5:
+        out["DONE success"] = success
+    out["Arrive"] = arrive
+    if success == True:
+        out['Arrive AND Done'] = arrive
     return out
 
 

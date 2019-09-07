@@ -54,6 +54,7 @@ class BaseModel(torch.nn.Module):
 
     def embedding(self, state, target, action_probs, params):
 
+        target = target.view([10000])
         action_embedding_input = action_probs
 
         if params is None:

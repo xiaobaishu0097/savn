@@ -23,7 +23,8 @@ def get_scenes(scene_str):
             for j in pre
         ]
         # flatten list of lists to list
-        out = [i + "_physics" for s in scene_names for i in s]
+        # out = [i + "_physics" for s in scene_names for i in s]
+        out = [i for s in scene_names for i in s]
         new_out = []
         for k in out:
             if ("n3" in k or "n4" in k) and len(k) == 20:

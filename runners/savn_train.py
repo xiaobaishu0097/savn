@@ -1,5 +1,6 @@
 from __future__ import division
 
+import os
 import time
 import random
 import setproctitle
@@ -32,7 +33,6 @@ def savn_train(
     end_flag,
 ):
 
-    glove = Glove(args.glove_file)
     scenes, possible_targets, targets = get_data(args.scene_types, args.train_scenes)
 
     random.seed(args.seed + rank)
@@ -59,6 +59,8 @@ def savn_train(
     while not end_flag.value:
 
         start_time = time.time()
+        glove_file_path = os.path.join(args.glove_dir, 'det_feature_{}.hdf5'.format(idx[j]))
+        glove = Glove(glove_file_path)
         new_episode(
             args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=glove
         )

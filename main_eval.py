@@ -55,7 +55,7 @@ def main_eval(args, create_shared_model, init_agent):
                 create_shared_model,
                 init_agent,
                 res_queue,
-                250,
+                1,
                 scene_type,
             ),
         )
@@ -69,7 +69,7 @@ def main_eval(args, create_shared_model, init_agent):
     train_scalars = ScalarMeanTracker()
 
     proc = len(args.scene_types)
-    pbar = tqdm(total=250 * proc)
+    pbar = tqdm(total=1 * proc)
 
     try:
         while end_count < proc:
