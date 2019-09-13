@@ -111,6 +111,8 @@ def main():
     train_thin = args.train_thin
     train_scalars = ScalarMeanTracker()
 
+    # start_ep_time = time.time()
+
     try:
         while train_total_ep < args.max_ep:
 
@@ -118,6 +120,8 @@ def main():
             train_scalars.add_scalars(train_result)
             train_total_ep += 1
             n_frames += train_result["ep_length"]
+            # if train_total_ep % 100 == 0:
+            #     print((time.time() - start_ep_time) / train_total_ep)
             if (train_total_ep % train_thin) == 0:
                 log_writer.add_scalar("n_frames", n_frames, train_total_ep)
                 tracked_means = train_scalars.pop_and_reset()

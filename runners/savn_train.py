@@ -59,10 +59,11 @@ def savn_train(
     while not end_flag.value:
 
         start_time = time.time()
-        glove_file_path = os.path.join(args.glove_dir, 'det_feature_{}.hdf5'.format(idx[j]))
-        glove = Glove(glove_file_path)
+        # glove_file_path = os.path.join(args.glove_dir, 'det_feature_{}.hdf5'.format(idx[j]))
+        # glove = Glove(glove_file_path)
+        # glove = Glove(args.glove_file)
         new_episode(
-            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=glove
+            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=args.glove_dir
         )
         player.episode.exploring = True
         total_reward = 0

@@ -186,7 +186,8 @@ def parse_arguments():
     parser.add_argument(
         "--glove_dim",
         type=int,
-        default=10000,
+        default=300,
+        # default=10000,
         help="which dimension of the glove vector to use",
     )
     parser.add_argument(
@@ -211,7 +212,8 @@ def parse_arguments():
     parser.add_argument(
         "--glove_dir",
         type=str,
-        default="./data/AI2Thor_Det_Features",
+        # default="./data/thor_glove",
+        default="./data/AI2Thor_Dataset_2.0.2",
         help="where the glove files are stored.",
     )
     parser.add_argument(

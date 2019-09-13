@@ -30,9 +30,8 @@ class NavigationAgent(ThorAgent):
             model_input.state = self.episode.current_frame
         model_input.hidden = self.hidden
 
-        current_pos = '{}|{}|{}|{}|{}|{}'.format(
+        current_pos = '{}|{}|{}|{}|{}'.format(
             self.environment.scene_name,
-            self.episode.target_object,
             self.episode.environment.controller.state.position()['x'],
             self.episode.environment.controller.state.position()['z'],
             self.episode.environment.controller.state.rotation,

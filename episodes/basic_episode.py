@@ -2,10 +2,12 @@
 import random
 
 import torch
+import os
 
 from datasets.constants import GOAL_SUCCESS_REWARD, STEP_PENALTY
 from datasets.constants import DONE
 from datasets.environment import Environment
+from datasets.glove import Glove
 
 from utils.net_util import gpuify, toFloatTensor
 from utils.action_util import get_actions
@@ -159,11 +161,12 @@ class BasicEpisode(Episode):
         if args.verbose:
             print("Scene", scene, "Navigating towards:", goal_object_type)
 
+        glove = Glove(os.path.join(args.glove_dir, self.environment.controller.scene_name, 'det_feature.hdf5'))
+
         self.glove_embedding = None
 
-        init_pos = '{}|{}|{}|{}|{}|{}'.format(
+        init_pos = '{}|{}|{}|{}|{}'.format(
             self.environment.controller.scene_name,
-            self.target_object,
             self.environment.controller.state.position()['x'],
             self.environment.controller.state.position()['z'],
             self.environment.controller.state.rotation,
