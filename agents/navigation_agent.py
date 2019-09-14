@@ -1,9 +1,17 @@
 import torch
+import numpy as np
+
 from utils.net_util import gpuify, toFloatTensor
 from models.model_io import ModelInput
 
 from .agent import ThorAgent
 
+CLASSES = [
+    'Pillow', 'Television', 'GarbageCan', 'Box', 'RemoteControl',
+    'Toaster', 'Microwave', 'Fridge', 'CoffeeMachine', 'Mug', 'Bowl',
+    'DeskLamp', 'CellPhone', 'Book', 'AlarmClock',
+    'Sink', 'ToiletPaper', 'SoapBottle', 'LightSwitch'
+]
 
 class NavigationAgent(ThorAgent):
     """ A navigation agent who learns with pretrained embeddings. """
@@ -30,16 +38,19 @@ class NavigationAgent(ThorAgent):
             model_input.state = self.episode.current_frame
         model_input.hidden = self.hidden
 
-        current_pos = '{}|{}|{}|{}|{}'.format(
-            self.environment.scene_name,
+        current_pos = '{}|{}|{}|{}'.format(
+            # self.environment.scene_name,
             self.episode.environment.controller.state.position()['x'],
             self.episode.environment.controller.state.position()['z'],
             self.episode.environment.controller.state.rotation,
             self.episode.environment.controller.state.horizon
         )
 
+        target_embedding_array = np.zeros((len(CLASSES), 1))
+        target_embedding_array[CLASSES.index(self.episode.target_object)] = 1
+        glove_embedding_tensor = np.concatenate((self.episode.glove_reader[current_pos][()], target_embedding_array), axis=1)
         # model_input.target_class_embedding = self.episode.glove_embedding
-        model_input.target_class_embedding = toFloatTensor(self.episode.glove_reader[current_pos][()], self.gpu_id)
+        model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
         model_input.action_probs = self.last_action_probs
 
         return model_input, self.model.forward(model_input, model_options)

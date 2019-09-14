@@ -5,13 +5,16 @@ import random
 import ctypes
 import setproctitle
 import time
+import h5py
 
 import numpy as np
 import torch
 import torch.multiprocessing as mp
 from tensorboardX import SummaryWriter
+from tqdm import tqdm
 
 from utils import flag_parser
+from torch.multiprocessing import Manager
 
 from utils.class_finder import model_class, agent_class, optimizer_class
 from utils.net_util import ScalarMeanTracker
@@ -22,6 +25,14 @@ from runners import nonadaptivea3c_train, nonadaptivea3c_val, savn_train, savn_v
 
 os.environ["OMP_NUM_THREADS"] = "1"
 
+def hdf5_to_dict(hdf5_file_path):
+    data = {}
+    with h5py.File(hdf5_file_path, 'r') as read_file:
+        for scene in tqdm(read_file.keys()):
+            data[scene] ={}
+            for pos in read_file[scene].keys():
+                data[scene][pos] = read_file[scene][pos][()]
+    return data
 
 def main():
     setproctitle.setproctitle("Train/Test Manager")
@@ -84,6 +95,13 @@ def main():
 
     processes = []
 
+    print('Start Loading!')
+    # img_file_path = './data/AI2thor_Combine_Dataset/resnet18_featuremap_train.hdf5'
+    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.hdf5'
+    # img_file = hdf5_to_dict(img_file_path)
+    glove_file = hdf5_to_dict(glove_file_path)
+    print('Loading Success!')
+
     end_flag = mp.Value(ctypes.c_bool, False)
 
     train_res_queue = mp.Queue()
@@ -100,6 +118,7 @@ def main():
                 optimizer,
                 train_res_queue,
                 end_flag,
+                glove_file,
             ),
         )
         p.start()
@@ -111,7 +130,7 @@ def main():
     train_thin = args.train_thin
     train_scalars = ScalarMeanTracker()
 
-    # start_ep_time = time.time()
+    start_ep_time = time.time()
 
     try:
         while train_total_ep < args.max_ep:

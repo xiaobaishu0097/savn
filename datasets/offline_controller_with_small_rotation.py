@@ -827,6 +827,7 @@ class OfflineControllerWithSmallRotation(BaseController):
 
     def get_image(self):
         return self.images[str(self.state)][:]
+        # return self.images[str(self.state)]
 
     def all_objects(self):
         if self.using_raw_metadata:

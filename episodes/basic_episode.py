@@ -4,6 +4,8 @@ import random
 import torch
 import os
 
+import numpy as np
+
 from datasets.constants import GOAL_SUCCESS_REWARD, STEP_PENALTY
 from datasets.constants import DONE
 from datasets.environment import Environment
@@ -14,6 +16,12 @@ from utils.action_util import get_actions
 from utils.net_util import gpuify
 from .episode import Episode
 
+CLASSES = [
+    'Pillow', 'Television', 'GarbageCan', 'Box', 'RemoteControl',
+    'Toaster', 'Microwave', 'Fridge', 'CoffeeMachine', 'Mug', 'Bowl',
+    'DeskLamp', 'CellPhone', 'Book', 'AlarmClock',
+    'Sink', 'ToiletPaper', 'SoapBottle', 'LightSwitch'
+]
 
 class BasicEpisode(Episode):
     """ Episode for Navigation. """
@@ -123,17 +131,23 @@ class BasicEpisode(Episode):
         )
 
     def _new_episode(
-        self, args, scenes, possible_targets, targets=None, keep_obj=False, glove=None
+        self, args, scenes, possible_targets, targets=None, keep_obj=False, glove=None, img_file=None,
     ):
         """ New navigation episode. """
         scene = random.choice(scenes)
+
+        if img_file is None:
+            img_file = args.images_file_name
+        else:
+            img_file = img_file[self.environment.controller.scene_name]
 
         if self._env is None:
             self._env = Environment(
                 offline_data_dir=args.offline_data_dir,
                 use_offline_controller=True,
                 grid_size=0.25,
-                images_file_name=args.images_file_name,
+                # images_file_name=args.images_file_name,
+                images_file_name=img_file,
                 local_executable_path=args.local_executable_path,
             )
             self._env.start(scene)
@@ -161,22 +175,29 @@ class BasicEpisode(Episode):
         if args.verbose:
             print("Scene", scene, "Navigating towards:", goal_object_type)
 
-        glove = Glove(os.path.join(args.glove_dir, self.environment.controller.scene_name, 'det_feature.hdf5'))
+        # glove = Glove(os.path.join(args.glove_dir, self.environment.controller.scene_name, 'det_feature.hdf5'))
+        glove = glove[self.environment.controller.scene_name]
 
         self.glove_embedding = None
 
-        init_pos = '{}|{}|{}|{}|{}'.format(
-            self.environment.controller.scene_name,
+        init_pos = '{}|{}|{}|{}'.format(
+            # self.environment.controller.scene_name,
             self.environment.controller.state.position()['x'],
             self.environment.controller.state.position()['z'],
             self.environment.controller.state.rotation,
             self.environment.controller.state.horizon
         )
 
+        target_embedding_array = np.zeros((len(CLASSES), 1))
+        target_embedding_array[CLASSES.index(self.target_object)] = 1
+        # glove_embedding_tensor = np.concatenate((glove.glove_embeddings[init_pos][()], target_embedding_array), axis=1)
+        glove_embedding_tensor = np.concatenate((glove[init_pos], target_embedding_array), axis=1)
+
         self.glove_embedding = toFloatTensor(
-            glove.glove_embeddings[init_pos][()], self.gpu_id
+            glove_embedding_tensor, self.gpu_id
         )
-        self.glove_reader = glove.glove_embeddings
+        # self.glove_reader = glove.glove_embeddings
+        self.glove_reader = glove
 
         # self.glove_embedding = toFloatTensor(
         #     glove.glove_embeddings[goal_object_type][:], self.gpu_id
@@ -190,6 +211,7 @@ class BasicEpisode(Episode):
         targets=None,
         keep_obj=False,
         glove=None,
+        img_file=None,
     ):
         self.done_count = 0
         self.duplicate_count = 0

@@ -12,15 +12,16 @@ from .model_io import ModelOutput
 class BaseModel(torch.nn.Module):
     def __init__(self, args):
         action_space = args.action_space
-        target_embedding_sz = args.glove_dim
+        # target_embedding_sz = args.glove_dim
+        target_embedding_sz = 95
         resnet_embedding_sz = args.hidden_state_sz
         hidden_state_sz = args.hidden_state_sz
         super(BaseModel, self).__init__()
 
         self.conv1 = nn.Conv2d(resnet_embedding_sz, 64, 1)
         self.maxp1 = nn.MaxPool2d(2, 2)
-        # self.embed_glove = nn.Linear(target_embedding_sz, 64)
-        self.embed_glove = nn.Conv2d(256, 64, 1, 1)
+        self.embed_glove = nn.Linear(target_embedding_sz, 64)
+        # self.embed_glove = nn.Conv2d(256, 64, 1, 1)
         self.embed_action = nn.Linear(action_space, 10)
 
         pointwise_in_channels = 138
@@ -57,6 +58,7 @@ class BaseModel(torch.nn.Module):
     def embedding(self, state, target, action_embedding_input, params):
 
         # action_embedding_input = action_probs
+        target = target.view([95])
 
         if params is None:
             glove_embedding = F.relu(self.embed_glove(target))
@@ -73,24 +75,24 @@ class BaseModel(torch.nn.Module):
             out = x.view(x.size(0), -1)
 
         else:
-            # glove_embedding = F.relu(
-            #     F.linear(
-            #         target,
-            #         weight=params["embed_glove.weight"],
-            #         bias=params["embed_glove.bias"],
-            #     )
-            # )
-
-            glove_embedding = F.avg_pool2d(
-                F.conv2d(
+            glove_embedding = F.relu(
+                F.linear(
                     target,
-                    weight=params['embed_glove.weight'],
-                    bias=params['embed_glove.bias']
-                ),
-                (7, 7),
-                # (1, 1)
-                (3, 3),
+                    weight=params["embed_glove.weight"],
+                    bias=params["embed_glove.bias"],
+                )
             )
+
+            # glove_embedding = F.avg_pool2d(
+            #     F.conv2d(
+            #         target,
+            #         weight=params['embed_glove.weight'],
+            #         bias=params['embed_glove.bias']
+            #     ),
+            #     (7, 7),
+            #     # (1, 1)
+            #     (3, 3),
+            # )
             #
             # glove_embedding = F.conv2d(
             #         target,
@@ -100,7 +102,7 @@ class BaseModel(torch.nn.Module):
 
             # glove_embedding = torch.randn(1,64,7,7).cuda()
 
-            # glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            glove_embedding = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
 
             action_embedding = F.relu(
                 F.linear(
