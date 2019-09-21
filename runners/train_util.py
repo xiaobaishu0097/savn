@@ -23,6 +23,7 @@ def new_episode(
     targets=None,
     keep_obj=False,
     glove=None,
+    img_file=None,
 ):
     player.episode.new_episode(args, scenes, possible_targets, targets, keep_obj, glove)
     player.reset_hidden()

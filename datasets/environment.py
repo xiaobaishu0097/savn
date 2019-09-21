@@ -18,6 +18,7 @@ class Environment:
         offline_data_dir="~/data/offline_data/",
         images_file_name="images.hdf5",
         local_executable_path=None,
+        total_images_file=None,
     ):
 
         self.offline_data_dir = offline_data_dir
@@ -30,6 +31,7 @@ class Environment:
             images_file_name=images_file_name,
             visualize=False,
             local_executable_path=local_executable_path,
+            total_images_file=total_images_file,
         )
         self.grid_size = grid_size
         self._reachable_points = None

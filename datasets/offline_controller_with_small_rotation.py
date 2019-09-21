@@ -547,6 +547,7 @@ class OfflineControllerWithSmallRotation(BaseController):
         actions=["MoveAhead", "RotateLeft", "RotateRight", "LookUp", "LookDown"],
         visualize=True,
         local_executable_path=None,
+        total_images_file=None,
     ):
 
         super(OfflineControllerWithSmallRotation, self).__init__()
@@ -569,6 +570,7 @@ class OfflineControllerWithSmallRotation(BaseController):
         self.horizons = [0, 30]
         self.debug_mode = debug_mode
         self.fov = fov
+        self.total_images_file = total_images_file
 
         self.local_executable_path = local_executable_path
 
@@ -651,6 +653,7 @@ class OfflineControllerWithSmallRotation(BaseController):
                 ),
                 "r",
             )
+            # self.images = self.total_images_file[scene_name]
             # print(self.offline_data_dir, self.scene_name, self.images_file_name)
 
         self.state = self.get_full_state(

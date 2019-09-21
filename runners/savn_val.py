@@ -3,6 +3,7 @@ from __future__ import division
 import time
 import setproctitle
 import copy
+import json
 from datasets.glove import Glove
 from datasets.data import get_data, name_to_num
 
@@ -31,9 +32,11 @@ def savn_val(
     res_queue,
     max_count,
     scene_type,
+    glove_file=None,
+    img_file=None,
 ):
 
-    glove = Glove(args.glove_file)
+    # glove = Glove(args.glove_file)
     scenes, possible_targets, targets = get_data(args.scene_types, args.val_scenes)
     num = name_to_num(scene_type)
     scenes = scenes[num]
@@ -70,6 +73,8 @@ def savn_val(
 
     player = initialize_agent(model_create_fn, args, rank, gpu_id=gpu_id)
 
+    player_actions = {}
+
     model_options = ModelOptions()
 
     while count < max_count:
@@ -77,7 +82,7 @@ def savn_val(
         count += 1
 
         start_time = time.time()
-        new_episode(args, player, scenes, possible_targets, targets, glove=glove)
+        new_episode(args, player, scenes, possible_targets, targets, glove=glove_file, img_file=None)
         player_start_state = copy.deepcopy(player.environment.controller.state)
         if args.verbose:
             print(player_start_state)
@@ -93,8 +98,14 @@ def savn_val(
         episode_num = 0
         num_gradients = 0
 
+        player_actions['scene'] = player.environment.scene_name
+        player_actions['target_object'] = player.episode.task_data[0]
+        player_actions['positions'] = []
+        player_actions['positions'].append(str(player_start_state))
+
         while True:
             total_reward = run_episode(player, args, total_reward, model_options, False)
+            player_actions['positions'].append(str(player.environment.controller.state))
 
             if player.done:
                 break
@@ -128,6 +139,7 @@ def savn_val(
                     loss_dict["{}/{:d}".format(k, episode_num)] = v.item()
 
         loss = compute_loss(args, player, gpu_id, model_options)
+        player_actions['success'] = player.success
 
         for k, v in loss.items():
             loss_dict[k] = v.item()
@@ -135,6 +147,10 @@ def savn_val(
 
         spl, best_path_length = compute_spl(player, player_start_state)
         bucketed_spl = get_bucketed_metrics(spl, best_path_length, player.success, player.actions[-1], player.arrive)
+
+        if args.record_route:
+            with open('/home/duhm/Code/savn_deployment/players_action_test.json', 'a') as write_file:
+                json.dump(player_actions, write_file)
 
         end_episode(
             player,

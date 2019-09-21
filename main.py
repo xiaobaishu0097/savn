@@ -6,6 +6,7 @@ import ctypes
 import setproctitle
 import time
 import h5py
+import pickle
 
 import numpy as np
 import torch
@@ -27,12 +28,26 @@ os.environ["OMP_NUM_THREADS"] = "1"
 
 def hdf5_to_dict(hdf5_file_path):
     data = {}
+    manager = Manager()
+    md_data = manager.dict()
     with h5py.File(hdf5_file_path, 'r') as read_file:
         for scene in tqdm(read_file.keys()):
-            data[scene] ={}
+            # data[scene] = {}
+            data[scene] = manager.dict()
             for pos in read_file[scene].keys():
                 data[scene][pos] = read_file[scene][pos][()]
-    return data
+    md_data.update(data)
+    return md_data
+
+def pickle_dict(pickle_path):
+    manager = Manager()
+    md_data = manager.dict()
+    with open(pickle_path, 'rb') as read_file:
+        # data = pickle.load(read_file)
+        md_data.update(pickle.load(read_file))
+
+    # md_data.update(data)
+    return md_data
 
 def main():
     setproctitle.setproctitle("Train/Test Manager")
@@ -100,6 +115,10 @@ def main():
     glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.hdf5'
     # img_file = hdf5_to_dict(img_file_path)
     glove_file = hdf5_to_dict(glove_file_path)
+    # img_file_path = './data/AI2thor_Combine_Dataset/resnet18_featuremap_train.pickle'
+    # glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.pickle'
+    # img_file = pickle_dict(img_file_path)
+    # glove_file = pickle_dict(glove_file_path)
     print('Loading Success!')
 
     end_flag = mp.Value(ctypes.c_bool, False)
@@ -130,7 +149,7 @@ def main():
     train_thin = args.train_thin
     train_scalars = ScalarMeanTracker()
 
-    start_ep_time = time.time()
+    # start_ep_time = time.time()
 
     try:
         while train_total_ep < args.max_ep:

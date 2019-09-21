@@ -1,10 +1,18 @@
 """ Contains the Episodes for Navigation. """
 from datasets.environment import Environment
-from utils.net_util import gpuify
+from utils.net_util import gpuify, toFloatTensor
 from .basic_episode import BasicEpisode
 import pickle
 from datasets.data import num_to_name
+import numpy as np
+from datasets.offline_controller_with_small_rotation import ThorAgentState
 
+CLASSES = [
+    'Pillow', 'Television', 'GarbageCan', 'Box', 'RemoteControl',
+    'Toaster', 'Microwave', 'Fridge', 'CoffeeMachine', 'Mug', 'Bowl',
+    'DeskLamp', 'CellPhone', 'Book', 'AlarmClock',
+    'Sink', 'ToiletPaper', 'SoapBottle', 'LightSwitch'
+]
 
 class TestValEpisode(BasicEpisode):
     """ Episode for Navigation. """
@@ -15,7 +23,7 @@ class TestValEpisode(BasicEpisode):
         self.all_data = None
         self.all_data_enumerator = 0
 
-    def _new_episode(self, args, episode):
+    def _new_episode(self, args, episode, glove):
         """ New navigation episode. """
         scene = episode["scene"]
 
@@ -31,7 +39,10 @@ class TestValEpisode(BasicEpisode):
         else:
             self._env.reset(scene)
 
-        self.environment.controller.state = episode["state"]
+        # self.environment.controller.state = episode["state"]
+        y = 0.9009995
+        x, z, hor, rot = episode["state"].split('|')
+        self.environment.controller.state = ThorAgentState(float(x), float(y), float(z), float(hor), float(rot))
 
         self.task_data = episode["task_data"]
         self.target_object = episode["goal_object_type"]
@@ -39,7 +50,28 @@ class TestValEpisode(BasicEpisode):
         if args.verbose:
             print("Scene", scene, "Navigating towards:", self.target_object)
 
-        self.glove_embedding = gpuify(episode["glove_embedding"], self.gpu_id)
+        # self.glove_embedding = gpuify(episode["glove_embedding"], self.gpu_id)
+        glove = glove[self.environment.controller.scene_name]
+
+        self.glove_embedding = None
+
+        init_pos = '{}|{}|{}|{}'.format(
+            # self.environment.controller.scene_name,
+            self.environment.controller.state.position()['x'],
+            self.environment.controller.state.position()['z'],
+            self.environment.controller.state.rotation,
+            self.environment.controller.state.horizon
+        )
+        # init_pos = self.environment.controller.state
+
+        target_embedding_array = np.zeros((len(CLASSES), 1))
+        target_embedding_array[CLASSES.index(self.target_object)] = 1
+        glove_embedding_tensor = np.concatenate((glove[init_pos], target_embedding_array), axis=1)
+
+        self.glove_embedding = toFloatTensor(
+            glove_embedding_tensor, self.gpu_id
+        )
+        self.glove_reader = glove
 
         return True
 
@@ -76,4 +108,4 @@ class TestValEpisode(BasicEpisode):
 
         episode = self.all_data[self.all_data_enumerator]
         self.all_data_enumerator += 1
-        self._new_episode(args, episode)
+        self._new_episode(args, episode, glove)

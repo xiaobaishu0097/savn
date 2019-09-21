@@ -10,13 +10,13 @@ import time
 import numpy as np
 import random
 import json
+import h5py
 from tqdm import tqdm
 
 from utils.net_util import ScalarMeanTracker
 from runners import nonadaptivea3c_val, savn_val
 
-
-def main_eval(args, create_shared_model, init_agent):
+def main_eval(args, create_shared_model, init_agent, glove_file):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -55,8 +55,9 @@ def main_eval(args, create_shared_model, init_agent):
                 create_shared_model,
                 init_agent,
                 res_queue,
-                1,
+                250,
                 scene_type,
+                glove_file,
             ),
         )
         p.start()

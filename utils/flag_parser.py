@@ -131,6 +131,12 @@ def parse_arguments():
         help="If true, output will contain more information.",
     )
     parser.add_argument(
+        "--record_route",
+        type=bool,
+        default=False,
+        help="If true, record the route of agent in test.",
+    )
+    parser.add_argument(
         "--max_ep", type=float, default=6000000, help="maximum # of episodes"
     )
 

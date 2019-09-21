@@ -32,9 +32,9 @@ def nonadaptivea3c_train(
     optimizer,
     res_queue,
     end_flag,
+    glove,
 ):
 
-    glove = Glove(args.glove_file)
     scenes, possible_targets, targets = get_data(args.scene_types, args.train_scenes)
 
     random.seed(args.seed + rank)

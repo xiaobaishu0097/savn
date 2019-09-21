@@ -137,9 +137,9 @@ class BasicEpisode(Episode):
         scene = random.choice(scenes)
 
         if img_file is None:
-            img_file = args.images_file_name
+            img_file_scene = args.images_file_name
         else:
-            img_file = img_file[self.environment.controller.scene_name]
+            img_file_scene = img_file[scene]
 
         if self._env is None:
             self._env = Environment(
@@ -147,8 +147,9 @@ class BasicEpisode(Episode):
                 use_offline_controller=True,
                 grid_size=0.25,
                 # images_file_name=args.images_file_name,
-                images_file_name=img_file,
+                images_file_name=img_file_scene,
                 local_executable_path=args.local_executable_path,
+                total_images_file=img_file
             )
             self._env.start(scene)
         else:
@@ -218,4 +219,4 @@ class BasicEpisode(Episode):
         self.failed_action_count = 0
         self.prev_frame = None
         self.current_frame = None
-        self._new_episode(args, scenes, possible_targets, targets, keep_obj, glove)
+        self._new_episode(args, scenes, possible_targets, targets, keep_obj, glove, img_file)
