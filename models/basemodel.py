@@ -135,6 +135,8 @@ class BaseModel(torch.nn.Module):
         return x, image_embedding
 
     def a3clstm(self, embedding, prev_hidden, params):
+        if embedding.shape == (1, 64, 7, 7):
+            embedding = embedding.view(embedding.size(0), -1)
         if params is None:
             hx, cx = self.lstm(embedding, prev_hidden)
             x = hx

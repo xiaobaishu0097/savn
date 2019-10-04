@@ -16,14 +16,14 @@ def run_episode(player, args, total_reward, model_options, training):
 
 
 def new_episode(
-    args,
-    player,
-    scenes,
-    possible_targets=None,
-    targets=None,
-    keep_obj=False,
-    glove=None,
-    img_file=None,
+        args,
+        player,
+        scenes,
+        possible_targets=None,
+        targets=None,
+        keep_obj=False,
+        glove=None,
+        img_file=None,
 ):
     player.episode.new_episode(args, scenes, possible_targets, targets, keep_obj, glove)
     player.reset_hidden()
@@ -36,6 +36,22 @@ def a3c_loss(args, player, gpu_id, model_options):
     if not player.done:
         _, output = player.eval_at_state(model_options)
         R = output.value.data
+
+    last_det = player.episode.last_det
+    current_det = player.episode.current_det
+    # det_factor_value = 1
+    det_factor_reward = 1
+    if (current_det == False) and (last_det == True):
+        # det_factor_value = 0.5
+        det_factor_reward = 2
+    elif (current_det == True) and (last_det == False):
+        det_factor_reward = 0.5
+    # det_factor_reward = torch.FloatTensor(det_factor_reward)
+    det_factor_reward = float(det_factor_reward)
+    # if gpu_id >= 0:
+    #     with torch.cuda.device(gpu_id):
+    #         # det_factor_value = det_factor_value.cuda()
+    #         det_factor_reward = det_factor_reward.cuda()
 
     if gpu_id >= 0:
         with torch.cuda.device(gpu_id):
@@ -50,22 +66,24 @@ def a3c_loss(args, player, gpu_id, model_options):
             gae = gae.cuda()
     R = Variable(R)
     for i in reversed(range(len(player.rewards))):
-        R = args.gamma * R + player.rewards[i]
+        R = args.gamma * R + player.rewards[i] * det_factor_reward
+        # R = args.gamma * R + player.rewards[i]
         advantage = R - player.values[i]
         value_loss = value_loss + 0.5 * advantage.pow(2)
 
         delta_t = (
-            player.rewards[i]
-            + args.gamma * player.values[i + 1].data
-            - player.values[i].data
+                player.rewards[i] * det_factor_reward
+                # player.rewards[i]
+                + args.gamma * player.values[i + 1].data
+                - player.values[i].data
         )
 
         gae = gae * args.gamma * args.tau + delta_t
 
         policy_loss = (
-            policy_loss
-            - player.log_probs[i] * Variable(gae)
-            - args.beta * player.entropies[i]
+                policy_loss
+                - player.log_probs[i] * Variable(gae)
+                - args.beta * player.entropies[i]
         )
 
     return policy_loss, value_loss
@@ -79,6 +97,8 @@ def compute_learned_loss(args, player, gpu_id, model_options):
         )
     }
     player.learned_input = None
+    # with torch.cuda.device(gpu_id):
+    #     learned_loss['learned_loss'] = torch.tensor([0]).cuda()
     return learned_loss
 
 
@@ -86,7 +106,7 @@ def transfer_gradient_from_player_to_shared(player, shared_model, gpu_id):
     """ Transfer the gradient from the player's model to the shared model
         and step """
     for param, shared_param in zip(
-        player.model.parameters(), shared_model.parameters()
+            player.model.parameters(), shared_model.parameters()
     ):
         if shared_param.requires_grad:
             if param.grad is None:
@@ -170,9 +190,8 @@ def compute_loss(args, player, gpu_id, model_options):
 
 
 def end_episode(
-    player, res_queue, title=None, episode_num=0, include_obj_success=False, **kwargs
+        player, res_queue, title=None, episode_num=0, include_obj_success=False, **kwargs
 ):
-
     results = {
         "done_count": player.episode.done_count,
         "ep_length": player.eps_len,
@@ -198,7 +217,6 @@ def get_bucketed_metrics(spl, best_path_length, success, done, arrive):
 
 
 def compute_spl(player, start_state):
-
     best = float("inf")
     for obj_id in player.episode.task_data:
         try:

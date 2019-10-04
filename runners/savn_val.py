@@ -132,7 +132,7 @@ def savn_val(
                 )
                 model_options.params = params_list[-1]
 
-                # reset_player(player)
+                reset_player(player)
                 episode_num += 1
 
                 for k, v in learned_loss.items():

@@ -44,6 +44,9 @@ class BasicEpisode(Episode):
         self.prev_frame = None
         self.current_frame = None
 
+        self.last_det = False
+        self.current_det = False
+
         self.scene_states = []
         if args.eval:
             random.seed(args.seed)
@@ -70,6 +73,7 @@ class BasicEpisode(Episode):
 
     def step(self, action_as_int, arrive):
 
+        self.last_det = self.current_det
         action = self.actions_list[action_as_int]
 
         if action["action"] != DONE:
@@ -219,4 +223,6 @@ class BasicEpisode(Episode):
         self.failed_action_count = 0
         self.prev_frame = None
         self.current_frame = None
+        self.last_det = False
+        self.current_det = False
         self._new_episode(args, scenes, possible_targets, targets, keep_obj, glove, img_file)

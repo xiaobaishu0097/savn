@@ -7,7 +7,7 @@ class ModelInput:
     """ Input to the model. """
 
     def __init__(
-        self, state=None, hidden=None, target_class_embedding=None, action_probs=None
+        self, state=None, hidden=None, target_class_embedding=None, action_probs=None,
     ):
         self.state = state
         self.hidden = hidden

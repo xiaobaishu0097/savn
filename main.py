@@ -158,7 +158,8 @@ def main():
             train_scalars.add_scalars(train_result)
             train_total_ep += 1
             n_frames += train_result["ep_length"]
-            # if train_total_ep % 100 == 0:
+            # if train_total_ep % 10 == 0:
+            #     print(n_frames / train_total_ep)
             #     print((time.time() - start_ep_time) / train_total_ep)
             if (train_total_ep % train_thin) == 0:
                 log_writer.add_scalar("n_frames", n_frames, train_total_ep)

@@ -29,9 +29,10 @@ def nonadaptivea3c_val(
     res_queue,
     max_count,
     scene_type,
+    glove_file,
 ):
 
-    glove = Glove(args.glove_file)
+    # glove = Glove(args.glove_file)
     scenes, possible_targets, targets = get_data(args.scene_types, args.val_scenes)
     num = name_to_num(scene_type)
     scenes = scenes[num]
@@ -45,6 +46,7 @@ def nonadaptivea3c_val(
     setproctitle.setproctitle("Agent: {}".format(rank))
 
     gpu_id = args.gpu_ids[rank % len(args.gpu_ids)]
+    torch.cuda.set_device(gpu_id)
     torch.manual_seed(args.seed + rank)
     if gpu_id >= 0:
         torch.cuda.manual_seed(args.seed + rank)
@@ -70,7 +72,7 @@ def nonadaptivea3c_val(
         # Get a new episode.
         total_reward = 0
         player.eps_len = 0
-        new_episode(args, player, scenes, possible_targets, targets, glove=glove)
+        new_episode(args, player, scenes, possible_targets, targets, glove=glove_file)
         player_start_state = copy.deepcopy(player.environment.controller.state)
         player_start_time = time.time()
 
@@ -89,7 +91,7 @@ def nonadaptivea3c_val(
             loss[k] = loss[k].item()
         spl, best_path_length = compute_spl(player, player_start_state)
 
-        bucketed_spl = get_bucketed_metrics(spl, best_path_length, player.success)
+        bucketed_spl = get_bucketed_metrics(spl, best_path_length, player.success, player.done, player.arrive)
 
         end_episode(
             player,

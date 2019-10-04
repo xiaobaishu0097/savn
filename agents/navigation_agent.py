@@ -50,6 +50,8 @@ class NavigationAgent(ThorAgent):
         target_embedding_array[CLASSES.index(self.episode.target_object)] = 1
         glove_embedding_tensor = np.concatenate((self.episode.glove_reader[current_pos][()], target_embedding_array), axis=1)
         # model_input.target_class_embedding = self.episode.glove_embedding
+        if (self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all():
+            self.episode.current_det = True
         model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
         model_input.action_probs = self.last_action_probs
 

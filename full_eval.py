@@ -75,14 +75,14 @@ def main():
         log_writer.add_scalar("val/success", results["success"], train_ep)
         log_writer.add_scalar("val/spl", results["spl"], train_ep)
 
-        # run on test.
-        args.test_or_val = "test"
-        main_eval(args, create_shared_model, init_agent, glove_file)
-        with open(args.results_json, "r") as f:
-            results = json.load(f)
-
-        log_writer.add_scalar("test/success", results["success"], train_ep)
-        log_writer.add_scalar("test/spl", results["spl"], train_ep)
+        # # run on test.
+        # args.test_or_val = "test"
+        # main_eval(args, create_shared_model, init_agent, glove_file)
+        # with open(args.results_json, "r") as f:
+        #     results = json.load(f)
+        #
+        # log_writer.add_scalar("test/success", results["success"], train_ep)
+        # log_writer.add_scalar("test/spl", results["spl"], train_ep)
 
     args.record_route = True
     args.test_or_val = "test"
