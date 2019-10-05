@@ -41,11 +41,11 @@ def a3c_loss(args, player, gpu_id, model_options):
     current_det = player.episode.current_det
     # det_factor_value = 1
     det_factor_reward = 1
-    if (current_det == False) and (last_det == True):
-        # det_factor_value = 0.5
-        det_factor_reward = 2
-    elif (current_det == True) and (last_det == False):
-        det_factor_reward = 0.5
+    # if (current_det == False) and (last_det == True):
+    #     # det_factor_value = 0.5
+    #     det_factor_reward = 2
+    # elif (current_det == True) and (last_det == False):
+    #     det_factor_reward = 0.5
     # det_factor_reward = torch.FloatTensor(det_factor_reward)
     det_factor_reward = float(det_factor_reward)
     # if gpu_id >= 0:

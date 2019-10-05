@@ -55,6 +55,13 @@ class NavigationAgent(ThorAgent):
         model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
         model_input.action_probs = self.last_action_probs
 
+        det_his = torch.zeros((1, 2))
+        if self.episode.current_det:
+            det_his[0, 1] = 1
+        if self.episode.last_det:
+            det_his[0, 0] = 1
+        model_input.det_relation = toFloatTensor(det_his, self.gpu_id)
+
         return model_input, self.model.forward(model_input, model_options)
 
     def preprocess_frame(self, frame):
