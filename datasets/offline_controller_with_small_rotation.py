@@ -755,7 +755,10 @@ class OfflineControllerWithSmallRotation(BaseController):
         return self.last_event
 
     def shortest_path(self, source_state, target_state):
-        return self.nx.shortest_path(self.graph, str(source_state), str(target_state))
+        try:
+            return self.nx.shortest_path(self.graph, str(source_state), str(target_state))
+        except:
+            return [item for item in range(100)]
 
     def optimal_plan(self, source_state, path):
         """ This is for debugging. It modifies the state. """

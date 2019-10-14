@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import os
 import json
 import h5py
+import time
 
 from utils import flag_parser
 from utils.class_finder import model_class, agent_class
@@ -36,7 +37,7 @@ def main():
     args.episode_type = "TestValEpisode"
     args.test_or_val = "val"
 
-    tb_log_dir = args.log_dir + "/" + args.title
+    tb_log_dir = args.log_dir + "/" + '{}_{}_{}'.format(args.title, args.test_or_val, time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime(time.time())))
     log_writer = SummaryWriter(log_dir=tb_log_dir)
 
     print('Start Loading!')
@@ -75,14 +76,14 @@ def main():
         log_writer.add_scalar("val/success", results["success"], train_ep)
         log_writer.add_scalar("val/spl", results["spl"], train_ep)
 
-        # # run on test.
-        # args.test_or_val = "test"
-        # main_eval(args, create_shared_model, init_agent, glove_file)
-        # with open(args.results_json, "r") as f:
-        #     results = json.load(f)
-        #
-        # log_writer.add_scalar("test/success", results["success"], train_ep)
-        # log_writer.add_scalar("test/spl", results["spl"], train_ep)
+        # run on test.
+        args.test_or_val = "test"
+        main_eval(args, create_shared_model, init_agent, glove_file)
+        with open(args.results_json, "r") as f:
+            results = json.load(f)
+
+        log_writer.add_scalar("test/success", results["success"], train_ep)
+        log_writer.add_scalar("test/spl", results["spl"], train_ep)
 
     args.record_route = True
     args.test_or_val = "test"

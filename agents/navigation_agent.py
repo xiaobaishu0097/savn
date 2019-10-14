@@ -3,6 +3,7 @@ import numpy as np
 
 from utils.net_util import gpuify, toFloatTensor
 from models.model_io import ModelInput
+from runners.train_util import generate_det_4_iou
 
 from .agent import ThorAgent
 
@@ -29,6 +30,7 @@ class NavigationAgent(ThorAgent):
             create_model(args), args, rank, episode, max_episode_length, gpu_id
         )
         self.hidden_state_sz = hidden_state_sz
+        self.last_det = None
 
     def eval_at_state(self, model_options):
         model_input = ModelInput()
@@ -50,10 +52,29 @@ class NavigationAgent(ThorAgent):
         target_embedding_array[CLASSES.index(self.episode.target_object)] = 1
         glove_embedding_tensor = np.concatenate((self.episode.glove_reader[current_pos][()], target_embedding_array), axis=1)
         # model_input.target_class_embedding = self.episode.glove_embedding
-        if (self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all():
-            self.episode.current_det = True
+        if ((self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all()) and (self.episode.det_frame == None):
+            self.episode.current_det = self.eps_len
         model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
-        model_input.action_probs = self.last_action_probs
+        # model_input.action_probs = self.last_action_probs
+        # if self.eps_len == 0:
+        #     model_input.det_his = toFloatTensor(torch.zeros(4), self.gpu_id)
+        # else:
+        #     model_input.det_his = self.last_det
+        # model_input.det_cur = toFloatTensor(self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)], self.gpu_id)
+        # self.last_det = model_input.det_cur
+
+        if self.eps_len == 0:
+            det_iou = toFloatTensor(torch.zeros(1, 4), self.gpu_id)
+        else:
+            det_iou = generate_det_4_iou(self.last_det)
+            det_iou = toFloatTensor(det_iou, self.gpu_id)
+
+        model_input.action_probs = torch.cat((self.last_action_probs, det_iou), dim=1)
+        self.last_det = self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)]
+
+        # optim_steps = torch.zeros((1, 1))
+        # optim_steps[0, 0] = self.episode.environment.controller.shortest_path_to_target(current_pos, self.episode.task_data[0])[1]
+        # model_input.optim_steps = toFloatTensor(optim_steps, self.gpu_id)
 
         det_his = torch.zeros((1, 2))
         if self.episode.current_det:

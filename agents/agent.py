@@ -20,6 +20,7 @@ class ThorAgent:
         self._episode = episode
         self.eps_len = 0
         self.values = []
+        self.optim_steps = []
         self.log_probs = []
         self.rewards = []
         self.entropies = []
@@ -131,6 +132,7 @@ class ThorAgent:
         self.probs.append(prob)
         self.entropies.append(entropy)
         self.values.append(out.value)
+        # self.optim_steps.append(self.episode.environment.controller.shortest_path_to_target(str(self.episode.environment.controller.state), self.episode.task_data[0])[1])
         self.log_probs.append(log_prob)
         self.rewards.append(self.reward)
         self.actions.append(action)
@@ -164,6 +166,7 @@ class ThorAgent:
     def clear_actions(self):
         """ Clear the information stored by the agent. """
         self.values = []
+        self.optim_steps = []
         self.log_probs = []
         self.rewards = []
         self.entropies = []

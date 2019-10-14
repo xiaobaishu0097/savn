@@ -37,17 +37,18 @@ def a3c_loss(args, player, gpu_id, model_options):
         _, output = player.eval_at_state(model_options)
         R = output.value.data
 
-    last_det = player.episode.last_det
-    current_det = player.episode.current_det
+    det_frame = player.episode.det_frame
+    # last_det = player.episode.last_det
+    # current_det = player.episode.current_det
     # det_factor_value = 1
-    det_factor_reward = 1
+    det_factor_reward_base = 1
     # if (current_det == False) and (last_det == True):
     #     # det_factor_value = 0.5
     #     det_factor_reward = 2
     # elif (current_det == True) and (last_det == False):
     #     det_factor_reward = 0.5
     # det_factor_reward = torch.FloatTensor(det_factor_reward)
-    det_factor_reward = float(det_factor_reward)
+    det_factor_reward_base = float(det_factor_reward_base)
     # if gpu_id >= 0:
     #     with torch.cuda.device(gpu_id):
     #         # det_factor_value = det_factor_value.cuda()
@@ -58,6 +59,7 @@ def a3c_loss(args, player, gpu_id, model_options):
             R = R.cuda()
 
     player.values.append(Variable(R))
+    # player.optim_steps.append(player.episode.environment.controller.shortest_path_to_target(str(player.episode.environment.controller.state), player.episode.task_data[0])[1])
     policy_loss = 0
     value_loss = 0
     gae = torch.zeros(1, 1)
@@ -66,9 +68,15 @@ def a3c_loss(args, player, gpu_id, model_options):
             gae = gae.cuda()
     R = Variable(R)
     for i in reversed(range(len(player.rewards))):
+        # if (det_frame != None) and (det_frame < i):
+        #     det_factor_reward = det_factor_reward_base * (i - det_frame)
+        # else:
+        #     det_factor_reward = det_factor_reward_base
+        det_factor_reward = det_factor_reward_base
         R = args.gamma * R + player.rewards[i] * det_factor_reward
         # R = args.gamma * R + player.rewards[i]
         advantage = R - player.values[i]
+        # advantage = R - (player.optim_steps[i] * -0.01 + 5)
         value_loss = value_loss + 0.5 * advantage.pow(2)
 
         delta_t = (
@@ -237,3 +245,37 @@ def compute_spl(player, start_state):
 
     # This is due to a rare known bug.
     return 0, best
+
+
+def generate_det_4_iou(det_bbox):
+    # det_bbox = det_bbox.cpu()
+    det_ious = torch.zeros((1, 4))
+    image_areas = [
+        [0, 0, 149, 149],
+        [150, 0, 299, 149],
+        [0, 149, 149, 299],
+        [150, 149, 299, 299],
+        # {'x1': 0, 'y1': 0, 'x2': 149, 'y2': 149},
+        # {'x1': 150, 'y1': 0, 'x2': 299, 'y2': 149},
+        # {'x1': 0, 'y1': 149, 'x2': 149, 'y2': 299},
+        # {'x1': 150, 'y1': 149, 'x2': 299, 'y2': 299}
+    ]
+
+    for index, image_area in enumerate(image_areas):
+        x_left = max(det_bbox[0], image_area[0])
+        y_top = max(det_bbox[1], image_area[1])
+        x_right = min(det_bbox[2], image_area[2])
+        y_bottom = min(det_bbox[3], image_area[3])
+
+        if (x_right < x_left) or (y_bottom < y_top):
+            det_ious[0, index] = 0
+            continue
+
+        intersection_area = (x_right - x_left) * (y_bottom - y_top)
+
+        area_1 = (det_bbox[2] - det_bbox[0]) * (det_bbox[3] - det_bbox[1])
+        area_2 = (image_area[2] - image_area[0]) * (image_area[3] - image_area[1])
+
+        det_ious[0, index] = intersection_area / float(area_1 + area_2 - intersection_area)
+
+    return det_ious

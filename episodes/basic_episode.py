@@ -43,6 +43,7 @@ class BasicEpisode(Episode):
         self.target_object = None
         self.prev_frame = None
         self.current_frame = None
+        self.det_frame = None
 
         self.last_det = False
         self.current_det = False
@@ -223,6 +224,7 @@ class BasicEpisode(Episode):
         self.failed_action_count = 0
         self.prev_frame = None
         self.current_frame = None
-        self.last_det = False
-        self.current_det = False
+        # self.last_det = False
+        # self.current_det = False
+        self.det_frame = None
         self._new_episode(args, scenes, possible_targets, targets, keep_obj, glove, img_file)

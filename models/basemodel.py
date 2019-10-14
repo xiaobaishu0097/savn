@@ -22,7 +22,8 @@ class BaseModel(torch.nn.Module):
         self.maxp1 = nn.MaxPool2d(2, 2)
         self.embed_glove = nn.Linear(target_embedding_sz, 64)
         # self.embed_glove = nn.Conv2d(256, 64, 1, 1)
-        self.embed_action = nn.Linear(action_space, 10)
+        # self.embed_action = nn.Linear(action_space, 10)
+        self.embed_action = nn.Linear(10, 10)
 
         pointwise_in_channels = 138
 
@@ -33,7 +34,10 @@ class BaseModel(torch.nn.Module):
         self.hidden_state_sz = hidden_state_sz
         self.lstm = nn.LSTMCell(lstm_input_sz, hidden_state_sz)
         num_outputs = action_space
-        self.critic_linear = nn.Linear(hidden_state_sz+2, 1)
+        # self.critic_linear = nn.Linear(hidden_state_sz, 1)
+        self.critic_linear_1 = nn.Linear(hidden_state_sz, 64)
+        # self.critic_linear_2 = nn.Linear(72, 1)
+        self.critic_linear_2 = nn.Linear(64, 1)
         self.actor_linear = nn.Linear(hidden_state_sz, num_outputs)
 
         self.apply(weights_init)
@@ -43,10 +47,19 @@ class BaseModel(torch.nn.Module):
             self.actor_linear.weight.data, 0.01
         )
         self.actor_linear.bias.data.fill_(0)
-        self.critic_linear.weight.data = norm_col_init(
-            self.critic_linear.weight.data, 1.0
+        # self.critic_linear.weight.data = norm_col_init(
+        #     self.critic_linear.weight.data, 1.0
+        # )
+        # self.critic_linear.bias.data.fill_(0)
+
+        self.critic_linear_1.weight.data = norm_col_init(
+            self.critic_linear_1.weight.data, 1.0
         )
-        self.critic_linear.bias.data.fill_(0)
+        self.critic_linear_1.bias.data.fill_(0)
+        self.critic_linear_2.weight.data = norm_col_init(
+            self.critic_linear_2.weight.data, 1.0
+        )
+        self.critic_linear_2.bias.data.fill_(0)
 
         self.lstm.bias_ih.data.fill_(0)
         self.lstm.bias_hh.data.fill_(0)
@@ -134,15 +147,18 @@ class BaseModel(torch.nn.Module):
 
         return x, image_embedding
 
-    def a3clstm(self, embedding, prev_hidden, params, det_relation):
+    def a3clstm(self, embedding, prev_hidden, params, det_his=None):
         if embedding.shape == (1, 64, 7, 7):
             embedding = embedding.view(embedding.size(0), -1)
         if params is None:
             hx, cx = self.lstm(embedding, prev_hidden)
             x = hx
             actor_out = self.actor_linear(x)
-            det_x = torch.cat((x, det_relation), dim=1)
-            critic_out = self.critic_linear(det_x)
+            # det_x = torch.cat((x, optim_steps), dim=1)
+            # critic_out = self.critic_linear(x)
+            x = self.critic_linear_1(x)
+            # x = torch.cat((x, torch.unsqueeze(det_his, dim=0)), dim=1)
+            critic_out = self.critic_linear_2(x)
 
         else:
             hx, cx = self._backend.LSTMCell(
@@ -172,17 +188,28 @@ class BaseModel(torch.nn.Module):
                 bias=params["actor_linear.bias"],
             )
 
-            det_x = torch.cat((x, det_relation), dim=1)
+            # det_x = torch.cat((x, optim_steps), dim=1)
             # critic_out = F.linear(
             #     x,
             #     weight=params["critic_linear.weight"],
             #     bias=params["critic_linear.bias"],
             # )
-            critic_out = F.linear(
-                det_x,
-                weight=params["critic_linear.weight"],
-                bias=params["critic_linear.bias"],
+            x = F.linear(
+                x,
+                weight=params["critic_linear_1.weight"],
+                bias=params["critic_linear_1.bias"],
             )
+            # x = torch.cat((x, det_his), dim=1)
+            critic_out = F.linear(
+                x,
+                weight=params["critic_linear_2.weight"],
+                bias=params["critic_linear_2.bias"],
+            )
+            # critic_out = F.linear(
+            #     det_x,
+            #     weight=params["critic_linear.weight"],
+            #     bias=params["critic_linear.bias"],
+            # )
 
 
         return actor_out, critic_out, (hx, cx)
@@ -195,10 +222,15 @@ class BaseModel(torch.nn.Module):
         target = model_input.target_class_embedding
         action_probs = model_input.action_probs
         params = model_options.params
-        det_relation = model_input.det_relation
+        # det_his = torch.cat((model_input.det_his, model_input.det_cur))
+        # det_relation = model_input.det_relation
+        # optim_steps = model_input.optim_steps
 
         x, image_embedding = self.embedding(state, target, action_probs, params)
-        actor_out, critic_out, (hx, cx) = self.a3clstm(x, (hx, cx), params, det_relation)
+        actor_out, critic_out, (hx, cx) = self.a3clstm(x, (hx, cx), params)
+        # actor_out, critic_out, (hx, cx) = self.a3clstm(x, (hx, cx), params, det_his)
+        # actor_out, critic_out, (hx, cx) = self.a3clstm(x, (hx, cx), params, det_relation)
+        # actor_out, critic_out, (hx, cx) = self.a3clstm(x, (hx, cx), params, optim_steps)
 
         return ModelOutput(
             value=critic_out,
