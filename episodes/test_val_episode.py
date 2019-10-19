@@ -82,6 +82,7 @@ class TestValEpisode(BasicEpisode):
         possible_targets=None,
         targets=None,
         keep_obj=False,
+        optimal_act=None,
         glove=None,
     ):
         self.done_count = 0
@@ -89,6 +90,7 @@ class TestValEpisode(BasicEpisode):
         self.failed_action_count = 0
         self.prev_frame = None
         self.current_frame = None
+        self.optimal_actions = None
 
         if self.file is None:
             sample_scene = scenes[0]

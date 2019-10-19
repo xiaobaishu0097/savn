@@ -47,6 +47,8 @@ class BasicEpisode(Episode):
 
         self.last_det = False
         self.current_det = False
+        self.det_gt = None
+        self.optimal_actions=None
 
         self.scene_states = []
         if args.eval:
@@ -136,15 +138,12 @@ class BasicEpisode(Episode):
         )
 
     def _new_episode(
-        self, args, scenes, possible_targets, targets=None, keep_obj=False, glove=None, img_file=None,
+        self, args, scenes, possible_targets, targets=None, keep_obj=False, optimal_act=None, glove=None, det_gt=None,
     ):
         """ New navigation episode. """
         scene = random.choice(scenes)
 
-        if img_file is None:
-            img_file_scene = args.images_file_name
-        else:
-            img_file_scene = img_file[scene]
+        img_file_scene = args.images_file_name
 
         if self._env is None:
             self._env = Environment(
@@ -154,7 +153,7 @@ class BasicEpisode(Episode):
                 # images_file_name=args.images_file_name,
                 images_file_name=img_file_scene,
                 local_executable_path=args.local_executable_path,
-                total_images_file=img_file
+                total_images_file=None
             )
             self._env.start(scene)
         else:
@@ -183,6 +182,7 @@ class BasicEpisode(Episode):
 
         # glove = Glove(os.path.join(args.glove_dir, self.environment.controller.scene_name, 'det_feature.hdf5'))
         glove = glove[self.environment.controller.scene_name]
+        self.optimal_actions = optimal_act[self.environment.controller.scene_name][self.task_data[0]]
 
         self.glove_embedding = None
 
@@ -204,6 +204,7 @@ class BasicEpisode(Episode):
         )
         # self.glove_reader = glove.glove_embeddings
         self.glove_reader = glove
+        # self.det_gt = det_gt[self.environment.controller.scene_name]
 
         # self.glove_embedding = toFloatTensor(
         #     glove.glove_embeddings[goal_object_type][:], self.gpu_id
@@ -216,8 +217,9 @@ class BasicEpisode(Episode):
         possible_targets=None,
         targets=None,
         keep_obj=False,
+        optimal_act=None,
         glove=None,
-        img_file=None,
+        # det_gt=None
     ):
         self.done_count = 0
         self.duplicate_count = 0
@@ -227,4 +229,4 @@ class BasicEpisode(Episode):
         # self.last_det = False
         # self.current_det = False
         self.det_frame = None
-        self._new_episode(args, scenes, possible_targets, targets, keep_obj, glove, img_file)
+        self._new_episode(args, scenes, possible_targets, targets, keep_obj, optimal_act=optimal_act, glove=glove)

@@ -32,7 +32,7 @@ def savn_train(
     res_queue,
     end_flag,
     glove_file=None,
-    img_file=None,
+    det_gt=None
 ):
 
     scenes, possible_targets, targets = get_data(args.scene_types, args.train_scenes)
@@ -67,7 +67,7 @@ def savn_train(
         if glove_file is None:
             glove_file = args.glove_dir
         new_episode(
-            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=glove_file, img_file=img_file
+            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=glove_file, det_gt=det_gt
         )
         player.episode.exploring = True
         total_reward = 0

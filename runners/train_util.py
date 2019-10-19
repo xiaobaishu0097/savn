@@ -2,6 +2,9 @@ from __future__ import division
 
 import torch
 from torch.autograd import Variable
+import torch.nn.functional as F
+
+import numpy as np
 
 
 def run_episode(player, args, total_reward, model_options, training):
@@ -15,6 +18,33 @@ def run_episode(player, args, total_reward, model_options, training):
     return total_reward
 
 
+def run_episode_test(player, args, total_reward, model_options, training):
+    num_steps = args.num_steps
+    model_options.params = get_params(player.model, player.gpu_id)
+
+    for _ in range(num_steps):
+        player.action(model_options, training)
+        if (player.last_det != np.zeros(4)).all():
+            action_det_prob = compute_action_det(player.last_det, player.gpu_id)
+            act_det_loss = F.cross_entropy(player.last_action_probs, torch.max(action_det_prob.long(), 1)[1])
+            # act_det_loss = F.binary_cross_entropy_with_logits(player.last_action_probs, action_det_prob)
+            loss = act_det_loss * 0.1
+
+            inner_gradient = torch.autograd.grad(
+                loss,
+                [v for _, v in model_options.params.items()],
+                create_graph=True,
+                retain_graph=True,
+                allow_unused=True,
+            )
+            model_options.params = SGD_step_test(player.model, inner_gradient, args.inner_lr)
+
+        total_reward = total_reward + player.reward
+        if player.done:
+            break
+    return total_reward
+
+
 def new_episode(
         args,
         player,
@@ -22,10 +52,11 @@ def new_episode(
         possible_targets=None,
         targets=None,
         keep_obj=False,
+        optimal_act=None,
         glove=None,
-        img_file=None,
+        det_gt=None
 ):
-    player.episode.new_episode(args, scenes, possible_targets, targets, keep_obj, glove)
+    player.episode.new_episode(args, scenes, possible_targets, targets, keep_obj, optimal_act, glove)
     player.reset_hidden()
     player.done = False
 
@@ -59,7 +90,8 @@ def a3c_loss(args, player, gpu_id, model_options):
             R = R.cuda()
 
     player.values.append(Variable(R))
-    # player.optim_steps.append(player.episode.environment.controller.shortest_path_to_target(str(player.episode.environment.controller.state), player.episode.task_data[0])[1])
+    # player.optim_steps.append(player.episode.environment.controller.shortest_path_to_target(str(
+    # player.episode.environment.controller.state), player.episode.task_data[0])[1])
     policy_loss = 0
     value_loss = 0
     gae = torch.zeros(1, 1)
@@ -141,6 +173,48 @@ def transfer_gradient_to_shared(gradient, shared_model, gpu_id):
         i += 1
 
 
+def calculate_iou(gt, pr):
+    x_left = max(pr[0], gt[0])
+    y_top = max(pr[1], gt[1])
+    x_right = min(pr[2], gt[2])
+    y_bottom = min(pr[3], gt[3])
+
+    if (x_right < x_left) or (y_bottom < y_top):
+        return 0
+
+    int_area = (x_right - x_left) * (y_bottom - y_top)
+
+    area_1 = (pr[2] - pr[0]) * (pr[3] - pr[1])
+    area_2 = (gt[2] - gt[0]) * (gt[3] - gt[1])
+
+    iou = int_area / float(area_1 + area_2 - int_area)
+
+    return iou
+
+
+def compute_action_det(det, gpu_id):
+    det_mid_point = [(det[0]+det[2])/2, (det[1]+det[3])/2]
+
+    up_prob = max((149-det_mid_point[1])/149, 0)
+    down_prob = max((det_mid_point[1]-149)/149, 0)
+
+    left_prob = max((149-det_mid_point[0])/149, 0)
+    right_prob = max((det_mid_point[0]-149)/149, 0)
+
+    forward_prob = np.sqrt((det_mid_point[0]-149)**2 + (det_mid_point[1]-149)**2) / (np.sqrt(2 * 150**2))
+    done_area = [99, 99, 199, 199]
+    done_prob = calculate_iou(done_area, det)
+
+    # [MOVE_AHEAD, ROTATE_LEFT, ROTATE_RIGHT, LOOK_UP, LOOK_DOWN, DONE]
+    action_det_prob = torch.tensor((forward_prob, left_prob, right_prob, up_prob, down_prob, done_prob)).reshape(1, 6)
+    action_det_prob = F.softmax(action_det_prob, dim=1)
+
+    with torch.cuda.device(gpu_id):
+        action_det_prob = action_det_prob.cuda()
+
+    return action_det_prob
+
+
 def get_params(shared_model, gpu_id):
     """ Copies the parameters from shared_model into theta. """
     theta = {}
@@ -185,6 +259,19 @@ def SGD_step(theta, grad, lr):
     return theta_i
 
 
+def SGD_step_test(theta, grad, lr):
+    theta_i = {}
+    j = 0
+    for name, param in theta.named_parameters():
+        if grad[j] is not None and "exclude" not in name and "ll" not in name:
+            theta_i[name] = param - lr * grad[j]
+        else:
+            theta_i[name] = param
+        j += 1
+
+    return theta_i
+
+
 def get_scenes_to_use(player, scenes, args):
     if args.new_scene:
         return scenes
@@ -192,6 +279,20 @@ def get_scenes_to_use(player, scenes, args):
 
 
 def compute_loss(args, player, gpu_id, model_options):
+    policy_loss, value_loss = a3c_loss(args, player, gpu_id, model_options)
+    if (player.last_det != np.zeros(4)).all():
+        act_det_gt = player.optim_step
+        with torch.cuda.device(gpu_id):
+            act_det_gt = act_det_gt.cuda()
+        act_det_loss = F.cross_entropy(player.last_action_probs, torch.max(act_det_gt.long(), 1)[1])
+        # act_det_loss = F.binary_cross_entropy_with_logits(player.last_action_probs, act_det_gt)
+        total_loss = policy_loss + 0.5 * value_loss + 0.1 * act_det_loss
+    else:
+        total_loss = policy_loss + 0.5 * value_loss
+    return dict(total_loss=total_loss, policy_loss=policy_loss, value_loss=value_loss)
+
+
+def compute_loss_ori(args, player, gpu_id, model_options):
     policy_loss, value_loss = a3c_loss(args, player, gpu_id, model_options)
     total_loss = policy_loss + 0.5 * value_loss
     return dict(total_loss=total_loss, policy_loss=policy_loss, value_loss=value_loss)

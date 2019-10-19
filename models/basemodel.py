@@ -22,8 +22,8 @@ class BaseModel(torch.nn.Module):
         self.maxp1 = nn.MaxPool2d(2, 2)
         self.embed_glove = nn.Linear(target_embedding_sz, 64)
         # self.embed_glove = nn.Conv2d(256, 64, 1, 1)
-        # self.embed_action = nn.Linear(action_space, 10)
-        self.embed_action = nn.Linear(10, 10)
+        self.embed_action = nn.Linear(action_space, 10)
+        # self.embed_action = nn.Linear(10, 10)
 
         pointwise_in_channels = 138
 
@@ -189,11 +189,13 @@ class BaseModel(torch.nn.Module):
             )
 
             # det_x = torch.cat((x, optim_steps), dim=1)
+
             # critic_out = F.linear(
             #     x,
             #     weight=params["critic_linear.weight"],
             #     bias=params["critic_linear.bias"],
             # )
+
             x = F.linear(
                 x,
                 weight=params["critic_linear_1.weight"],

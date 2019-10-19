@@ -33,6 +33,7 @@ def nonadaptivea3c_train(
     res_queue,
     end_flag,
     glove,
+    optim_act,
 ):
 
     scenes, possible_targets, targets = get_data(args.scene_types, args.train_scenes)
@@ -59,14 +60,17 @@ def nonadaptivea3c_train(
     model_options = ModelOptions()
 
     j = 0
+    episode_num = 0
 
     while not end_flag.value:
+        if episode_num > 250000:
+            args.lr = 0.00001
 
         # Get a new episode.
         total_reward = 0
         player.eps_len = 0
         new_episode(
-            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], glove=glove
+            args, player, scenes[idx[j]], possible_targets, targets[idx[j]], optimal_act=optim_act, glove=glove
         )
         player_start_time = time.time()
 
@@ -103,5 +107,7 @@ def nonadaptivea3c_train(
         reset_player(player)
 
         j = (j + 1) % len(args.scene_types)
+
+        episode_num += 1
 
     player.exit()

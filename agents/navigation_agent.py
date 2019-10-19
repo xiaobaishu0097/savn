@@ -30,6 +30,9 @@ class NavigationAgent(ThorAgent):
             create_model(args), args, rank, episode, max_episode_length, gpu_id
         )
         self.hidden_state_sz = hidden_state_sz
+        self.detector_det = None
+        self.gt_det = None
+        self.optim_step = None
         self.last_det = None
 
     def eval_at_state(self, model_options):
@@ -55,7 +58,7 @@ class NavigationAgent(ThorAgent):
         if ((self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all()) and (self.episode.det_frame == None):
             self.episode.current_det = self.eps_len
         model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
-        # model_input.action_probs = self.last_action_probs
+
         # if self.eps_len == 0:
         #     model_input.det_his = toFloatTensor(torch.zeros(4), self.gpu_id)
         # else:
@@ -63,25 +66,43 @@ class NavigationAgent(ThorAgent):
         # model_input.det_cur = toFloatTensor(self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)], self.gpu_id)
         # self.last_det = model_input.det_cur
 
-        if self.eps_len == 0:
-            det_iou = toFloatTensor(torch.zeros(1, 4), self.gpu_id)
-        else:
-            det_iou = generate_det_4_iou(self.last_det)
-            det_iou = toFloatTensor(det_iou, self.gpu_id)
+        model_input.action_probs = self.last_action_probs
 
-        model_input.action_probs = torch.cat((self.last_action_probs, det_iou), dim=1)
+        # if self.eps_len == 0:
+        #     det_iou = toFloatTensor(torch.zeros(1, 4), self.gpu_id)
+        # else:
+        #     det_iou = generate_det_4_iou(self.last_det)
+        #     det_iou = toFloatTensor(det_iou, self.gpu_id)
+        #
+        # model_input.action_probs = torch.cat((self.last_action_probs, det_iou), dim=1)
+
         self.last_det = self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)]
+        # self.detector_det = self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)]
+        # if self.episode.task_data[0] in self.episode.det_gt[current_pos]:
+        #     self.gt_det = self.episode.det_gt[current_pos][self.episode.task_data[0]]
+        # else:
+        #     self.gt_det = np.zeros(4)
+        # optimal_solution = self.episode.environment.controller.shortest_path_to_target(current_pos, self.episode.task_data[0])
+        if self.episode.optimal_actions is not None:
+            optimal_solution = self.episode.optimal_actions[current_pos]
+            self.optim_step = torch.zeros((1, 6))
+            self.optim_step[0, optimal_solution] = 1
+        # if (optimal_solution[0] is not None) and (len(optimal_solution[0]) < 99):
+        #     optim_next_state = optimal_solution[0][0]
+        # else:
+        #     optim_next_state = current_pos
+        # self.optim_step = self.optim_action(current_pos, optim_next_state)
 
         # optim_steps = torch.zeros((1, 1))
         # optim_steps[0, 0] = self.episode.environment.controller.shortest_path_to_target(current_pos, self.episode.task_data[0])[1]
         # model_input.optim_steps = toFloatTensor(optim_steps, self.gpu_id)
 
-        det_his = torch.zeros((1, 2))
-        if self.episode.current_det:
-            det_his[0, 1] = 1
-        if self.episode.last_det:
-            det_his[0, 0] = 1
-        model_input.det_relation = toFloatTensor(det_his, self.gpu_id)
+        # det_his = torch.zeros((1, 2))
+        # if self.episode.current_det:
+        #     det_his[0, 1] = 1
+        # if self.episode.last_det:
+        #     det_his[0, 0] = 1
+        # model_input.det_relation = toFloatTensor(det_his, self.gpu_id)
 
         return model_input, self.model.forward(model_input, model_options)
 
@@ -109,6 +130,26 @@ class NavigationAgent(ThorAgent):
     def repackage_hidden(self):
         self.hidden = (self.hidden[0].detach(), self.hidden[1].detach())
         self.last_action_probs = self.last_action_probs.detach()
+
+    def optim_action(self, current_state, next_state):
+        action_prob = torch.zeros((1, 6))
+        if current_state == next_state:
+            action_prob[0, 5] = 1
+        else:
+            current_x, current_z, current_rot, current_hor = current_state.split('|')
+            next_x, next_z, next_rot, next_hor = next_state.split('|')
+            if int(next_rot) == (int(current_rot) + 45):
+                action_prob[0, 2] = 1
+            elif int(next_rot) == (int(current_rot) - 45):
+                action_prob[0, 1] = 1
+            elif (current_hor == '0') and (next_hor == '30'):
+                action_prob[0, 4] = 1
+            elif (current_hor == '30') and (next_hor == '0'):
+                action_prob[0, 3] = 1
+            elif (current_x != next_x) or (current_z != next_z):
+                action_prob[0, 0] = 1
+
+        return action_prob
 
     def state(self):
         return self.preprocess_frame(self.episode.state_for_agent())

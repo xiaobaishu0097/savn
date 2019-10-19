@@ -7,6 +7,7 @@ import setproctitle
 import time
 import h5py
 import pickle
+import json
 
 import numpy as np
 import torch
@@ -26,6 +27,7 @@ from runners import nonadaptivea3c_train, nonadaptivea3c_val, savn_train, savn_v
 
 os.environ["OMP_NUM_THREADS"] = "1"
 
+
 def hdf5_to_dict(hdf5_file_path):
     data = {}
     manager = Manager()
@@ -39,15 +41,6 @@ def hdf5_to_dict(hdf5_file_path):
     md_data.update(data)
     return md_data
 
-def pickle_dict(pickle_path):
-    manager = Manager()
-    md_data = manager.dict()
-    with open(pickle_path, 'rb') as read_file:
-        # data = pickle.load(read_file)
-        md_data.update(pickle.load(read_file))
-
-    # md_data.update(data)
-    return md_data
 
 def main():
     setproctitle.setproctitle("Train/Test Manager")
@@ -111,14 +104,17 @@ def main():
     processes = []
 
     print('Start Loading!')
-    # img_file_path = './data/AI2thor_Combine_Dataset/resnet18_featuremap_train.hdf5'
+    optimal_action_path = './data/AI2thor_Combine_Dataset/Optimal_Path_Combine.json'
+    with open(optimal_action_path, 'r') as read_file:
+        optimal_action_dict = json.load(read_file)
+    manager = Manager()
+    optimal_action = manager.dict()
+    optimal_action.update(optimal_action_dict)
     glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.hdf5'
-    # img_file = hdf5_to_dict(img_file_path)
     glove_file = hdf5_to_dict(glove_file_path)
-    # img_file_path = './data/AI2thor_Combine_Dataset/resnet18_featuremap_train.pickle'
-    # glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.pickle'
-    # img_file = pickle_dict(img_file_path)
-    # glove_file = pickle_dict(glove_file_path)
+    # det_gt_path = './data/AI2thor_Combine_Dataset/Instance_Detection_Combine.pkl'
+    # with open(det_gt_path, 'rb') as read_file:
+    #     det_gt = pickle.load(read_file)
     print('Loading Success!')
 
     end_flag = mp.Value(ctypes.c_bool, False)
@@ -138,6 +134,8 @@ def main():
                 train_res_queue,
                 end_flag,
                 glove_file,
+                optimal_action,
+                # det_gt,
             ),
         )
         p.start()
