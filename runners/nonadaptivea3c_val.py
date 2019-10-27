@@ -17,7 +17,7 @@ from .train_util import (
     reset_player,
     compute_spl,
     get_bucketed_metrics,
-    run_episode_test, compute_loss_ori)
+    run_episode_test, compute_loss_ori, get_params)
 
 
 def nonadaptivea3c_val(
@@ -30,6 +30,7 @@ def nonadaptivea3c_val(
     max_count,
     scene_type,
     glove_file,
+    optimal_action,
 ):
 
     # glove = Glove(args.glove_file)
@@ -72,17 +73,20 @@ def nonadaptivea3c_val(
         # Get a new episode.
         total_reward = 0
         player.eps_len = 0
-        new_episode(args, player, scenes, possible_targets, targets, glove=glove_file)
+        new_episode(args, player, scenes, possible_targets, targets, optimal_act=optimal_action, glove=glove_file)
         player_start_state = copy.deepcopy(player.environment.controller.state)
         player_start_time = time.time()
+
+        player.sync_with_shared(shared_model)
+        # model_options.params = get_params(player.model, player.gpu_id)
 
         # Train on the new episode.
         while not player.done:
             # Make sure model is up to date.
-            player.sync_with_shared(shared_model)
+            # player.sync_with_shared(shared_model)
             # Run episode for num_steps or until player is done.
-            total_reward = run_episode(player, args, total_reward, model_options, False)
-            # total_reward = run_episode_test(player, args, total_reward, model_options, False)
+            # total_reward = run_episode(player, args, total_reward, model_options, False)
+            total_reward = run_episode_test(player, args, total_reward, model_options, False)
             # Compute the loss.
             loss = compute_loss_ori(args, player, gpu_id, model_options)
             if not player.done:

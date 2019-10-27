@@ -20,28 +20,34 @@ def run_episode(player, args, total_reward, model_options, training):
 
 def run_episode_test(player, args, total_reward, model_options, training):
     num_steps = args.num_steps
-    model_options.params = get_params(player.model, player.gpu_id)
+    # model_options.params = get_params(player.model, player.gpu_id)
 
     for _ in range(num_steps):
         player.action(model_options, training)
-        if (player.last_det != np.zeros(4)).all():
-            action_det_prob = compute_action_det(player.last_det, player.gpu_id)
+        if (player.episode.detections[-1][256:260] != np.zeros(4)).all():
+            # action_det_prob = compute_action_det(player.last_det, player.gpu_id)
+            action_det_prob = player.optim_step
+            with torch.cuda.device(player.gpu_id):
+                action_det_prob = action_det_prob.cuda()
             act_det_loss = F.cross_entropy(player.last_action_probs, torch.max(action_det_prob.long(), 1)[1])
-            # act_det_loss = F.binary_cross_entropy_with_logits(player.last_action_probs, action_det_prob)
-            loss = act_det_loss * 0.1
+            loss = act_det_loss
 
             inner_gradient = torch.autograd.grad(
                 loss,
-                [v for _, v in model_options.params.items()],
+                # [v for _, v in model_options.params.items()],
+                [v for _, v in player.model.named_parameters()],
                 create_graph=True,
                 retain_graph=True,
                 allow_unused=True,
             )
-            model_options.params = SGD_step_test(player.model, inner_gradient, args.inner_lr)
+            # model_options.params = SGD_step_test(model_options.params, inner_gradient, args.inner_lr)
+            # model_options.params = SGD_step(model_options.params, inner_gradient, args.inner_lr)
+            player.model.load_state_dict(SGD_step(player.model, inner_gradient, args.inner_lr))
 
         total_reward = total_reward + player.reward
         if player.done:
             break
+    # print(num_steps)
     return total_reward
 
 
@@ -59,6 +65,11 @@ def new_episode(
     player.episode.new_episode(args, scenes, possible_targets, targets, keep_obj, optimal_act, glove)
     player.reset_hidden()
     player.done = False
+    player.last_det = np.zeros(4)
+
+
+def compute_area(bbox):
+    return (bbox[2] - bbox[0]) * (bbox[3] - bbox[1])
 
 
 def a3c_loss(args, player, gpu_id, model_options):
@@ -67,23 +78,6 @@ def a3c_loss(args, player, gpu_id, model_options):
     if not player.done:
         _, output = player.eval_at_state(model_options)
         R = output.value.data
-
-    det_frame = player.episode.det_frame
-    # last_det = player.episode.last_det
-    # current_det = player.episode.current_det
-    # det_factor_value = 1
-    det_factor_reward_base = 1
-    # if (current_det == False) and (last_det == True):
-    #     # det_factor_value = 0.5
-    #     det_factor_reward = 2
-    # elif (current_det == True) and (last_det == False):
-    #     det_factor_reward = 0.5
-    # det_factor_reward = torch.FloatTensor(det_factor_reward)
-    det_factor_reward_base = float(det_factor_reward_base)
-    # if gpu_id >= 0:
-    #     with torch.cuda.device(gpu_id):
-    #         # det_factor_value = det_factor_value.cuda()
-    #         det_factor_reward = det_factor_reward.cuda()
 
     if gpu_id >= 0:
         with torch.cuda.device(gpu_id):
@@ -100,19 +94,23 @@ def a3c_loss(args, player, gpu_id, model_options):
             gae = gae.cuda()
     R = Variable(R)
     for i in reversed(range(len(player.rewards))):
-        # if (det_frame != None) and (det_frame < i):
-        #     det_factor_reward = det_factor_reward_base * (i - det_frame)
-        # else:
-        #     det_factor_reward = det_factor_reward_base
-        det_factor_reward = det_factor_reward_base
-        R = args.gamma * R + player.rewards[i] * det_factor_reward
-        # R = args.gamma * R + player.rewards[i]
+        # det_factor_reward = float(1)
+        # if i < len(player.rewards) - 1:
+        #     if (player.episode.detections[i + 1] != np.zeros(4)).all() and (
+        #             player.episode.detections[i] != np.zeros(4)).all():
+        #         if player.values[i + 1].data > 0:
+        #             det_factor_reward = float(compute_area(player.episode.detections[i + 1])) / float(
+        #                 compute_area(player.episode.detections[i]))
+        #         else:
+        #             det_factor_reward = float(compute_area(player.episode.detections[i])) / float(
+        #                 compute_area(player.episode.detections[i+1]))
+        # R = args.gamma * R + player.rewards[i] * det_factor_reward
+        R = args.gamma * R + player.rewards[i]
         advantage = R - player.values[i]
-        # advantage = R - (player.optim_steps[i] * -0.01 + 5)
         value_loss = value_loss + 0.5 * advantage.pow(2)
 
         delta_t = (
-                player.rewards[i] * det_factor_reward
+                player.rewards[i]
                 # player.rewards[i]
                 + args.gamma * player.values[i + 1].data
                 - player.values[i].data
@@ -249,7 +247,8 @@ def reset_player(player):
 def SGD_step(theta, grad, lr):
     theta_i = {}
     j = 0
-    for name, param in theta.items():
+    # for name, param in theta.items():
+    for name, param in theta.named_parameters():
         if grad[j] is not None and "exclude" not in name and "ll" not in name:
             theta_i[name] = param - lr * grad[j]
         else:
@@ -262,8 +261,8 @@ def SGD_step(theta, grad, lr):
 def SGD_step_test(theta, grad, lr):
     theta_i = {}
     j = 0
-    for name, param in theta.named_parameters():
-        if grad[j] is not None and "exclude" not in name and "ll" not in name:
+    for name, param in theta.items():
+        if grad[j] is not None and "exclude" not in name and "ll" not in name and 'actor_linear' in name:
             theta_i[name] = param - lr * grad[j]
         else:
             theta_i[name] = param

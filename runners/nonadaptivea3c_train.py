@@ -20,7 +20,7 @@ from .train_util import (
     transfer_gradient_from_player_to_shared,
     end_episode,
     reset_player,
-)
+    compute_loss_ori)
 
 
 def nonadaptivea3c_train(
@@ -63,8 +63,8 @@ def nonadaptivea3c_train(
     episode_num = 0
 
     while not end_flag.value:
-        if episode_num > 250000:
-            args.lr = 0.00001
+        # if episode_num % 100000 == 0:
+        #     args.lr = 0.5 * args.lr
 
         # Get a new episode.
         total_reward = 0
@@ -72,6 +72,9 @@ def nonadaptivea3c_train(
         new_episode(
             args, player, scenes[idx[j]], possible_targets, targets[idx[j]], optimal_act=optim_act, glove=glove
         )
+        # new_episode(
+        #     args, player, scenes[idx[j]], possible_targets, targets[idx[j]], optimal_act=optim_act, glove=glove
+        # )
         player_start_time = time.time()
 
         # Train on the new episode.
@@ -81,7 +84,8 @@ def nonadaptivea3c_train(
             # Run episode for num_steps or until player is done.
             total_reward = run_episode(player, args, total_reward, model_options, True)
             # Compute the loss.
-            loss = compute_loss(args, player, gpu_id, model_options)
+            # loss = compute_loss(args, player, gpu_id, model_options)
+            loss = compute_loss_ori(args, player, gpu_id, model_options)
             if compute_grad:
                 # Compute gradient.
                 player.model.zero_grad()

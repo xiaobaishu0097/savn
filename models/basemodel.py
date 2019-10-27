@@ -20,10 +20,12 @@ class BaseModel(torch.nn.Module):
 
         self.conv1 = nn.Conv2d(resnet_embedding_sz, 64, 1)
         self.maxp1 = nn.MaxPool2d(2, 2)
-        self.embed_glove = nn.Linear(target_embedding_sz, 64)
+        self.embed_glove = nn.Linear(19*262, 64*7*7)
+        # self.embed_glove = nn.Linear(target_embedding_sz, 64)
         # self.embed_glove = nn.Conv2d(256, 64, 1, 1)
         self.embed_action = nn.Linear(action_space, 10)
         # self.embed_action = nn.Linear(10, 10)
+        self.graph = nn.Linear(19, 19)
 
         pointwise_in_channels = 138
 
@@ -47,6 +49,7 @@ class BaseModel(torch.nn.Module):
             self.actor_linear.weight.data, 0.01
         )
         self.actor_linear.bias.data.fill_(0)
+
         # self.critic_linear.weight.data = norm_col_init(
         #     self.critic_linear.weight.data, 1.0
         # )
@@ -71,11 +74,13 @@ class BaseModel(torch.nn.Module):
     def embedding(self, state, target, action_embedding_input, params):
 
         # action_embedding_input = action_probs
-        target = target.view([95])
+        # target = target.view([95])
+        target = target.view([4978])
 
         if params is None:
             glove_embedding = F.relu(self.embed_glove(target))
-            glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            # glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            glove_reshaped = glove_embedding.reshape(1, 64, 7, 7)
 
             action_embedding = F.relu(self.embed_action(action_embedding_input))
             action_reshaped = action_embedding.view(1, 10, 1, 1).repeat(1, 1, 7, 7)
@@ -115,7 +120,8 @@ class BaseModel(torch.nn.Module):
 
             # glove_embedding = torch.randn(1,64,7,7).cuda()
 
-            glove_embedding = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            # glove_embedding = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            glove_embedding = glove_embedding.reshape(1, 64, 7, 7)
 
             action_embedding = F.relu(
                 F.linear(
@@ -207,6 +213,7 @@ class BaseModel(torch.nn.Module):
                 weight=params["critic_linear_2.weight"],
                 bias=params["critic_linear_2.bias"],
             )
+
             # critic_out = F.linear(
             #     det_x,
             #     weight=params["critic_linear.weight"],

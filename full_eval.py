@@ -3,6 +3,7 @@ import os
 import json
 import h5py
 import time
+import torch
 
 from utils import flag_parser
 from utils.class_finder import model_class, agent_class
@@ -29,6 +30,9 @@ def hdf5_to_dict(hdf5_file_path):
     return md_data
 
 def main():
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     args = flag_parser.parse_arguments()
 
     create_shared_model = model_class(args.model)
@@ -41,7 +45,13 @@ def main():
     log_writer = SummaryWriter(log_dir=tb_log_dir)
 
     print('Start Loading!')
-    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_eval.hdf5'
+    optimal_action_path = './data/AI2thor_Combine_Dataset/Optimal_Path_Combine.json'
+    with open(optimal_action_path, 'r') as read_file:
+        optimal_action_dict = json.load(read_file)
+    manager = Manager()
+    optimal_action = manager.dict()
+    optimal_action.update(optimal_action_dict)
+    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_final_eval.hdf5'
     glove_file = hdf5_to_dict(glove_file_path)
     print('Loading Success!')
 
@@ -63,7 +73,7 @@ def main():
 
         # run eval on model
         args.test_or_val = "val"
-        main_eval(args, create_shared_model, init_agent, glove_file)
+        main_eval(args, create_shared_model, init_agent, glove_file, optimal_action)
 
         # check if best on val.
         with open(args.results_json, "r") as f:
@@ -78,7 +88,7 @@ def main():
 
         # run on test.
         args.test_or_val = "test"
-        main_eval(args, create_shared_model, init_agent, glove_file)
+        main_eval(args, create_shared_model, init_agent, glove_file, optimal_action)
         with open(args.results_json, "r") as f:
             results = json.load(f)
 
@@ -88,7 +98,7 @@ def main():
     args.record_route = True
     args.test_or_val = "test"
     args.load_model = best_model_on_val
-    main_eval(args, create_shared_model, init_agent, glove_file)
+    main_eval(args, create_shared_model, init_agent, glove_file, optimal_action)
 
     with open(args.results_json, "r") as f:
         results = json.load(f)

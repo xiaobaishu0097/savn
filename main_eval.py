@@ -16,7 +16,8 @@ from tqdm import tqdm
 from utils.net_util import ScalarMeanTracker
 from runners import nonadaptivea3c_val, savn_val
 
-def main_eval(args, create_shared_model, init_agent, glove_file):
+
+def main_eval(args, create_shared_model, init_agent, glove_file, optimal_action):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -58,6 +59,7 @@ def main_eval(args, create_shared_model, init_agent, glove_file):
                 250,
                 scene_type,
                 glove_file,
+                optimal_action,
             ),
         )
         p.start()

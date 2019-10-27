@@ -55,8 +55,8 @@ class NavigationAgent(ThorAgent):
         target_embedding_array[CLASSES.index(self.episode.target_object)] = 1
         glove_embedding_tensor = np.concatenate((self.episode.glove_reader[current_pos][()], target_embedding_array), axis=1)
         # model_input.target_class_embedding = self.episode.glove_embedding
-        if ((self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all()) and (self.episode.det_frame == None):
-            self.episode.current_det = self.eps_len
+        # if ((self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)] != np.array([0, 0, 0, 0])).all()) and (self.episode.det_frame == None):
+        #     self.episode.current_det = self.eps_len
         model_input.target_class_embedding = toFloatTensor(glove_embedding_tensor, self.gpu_id)
 
         # if self.eps_len == 0:
@@ -76,7 +76,7 @@ class NavigationAgent(ThorAgent):
         #
         # model_input.action_probs = torch.cat((self.last_action_probs, det_iou), dim=1)
 
-        self.last_det = self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)]
+        self.episode.detections.append(self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)])
         # self.detector_det = self.episode.glove_reader[current_pos][CLASSES.index(self.episode.target_object)]
         # if self.episode.task_data[0] in self.episode.det_gt[current_pos]:
         #     self.gt_det = self.episode.det_gt[current_pos][self.episode.task_data[0]]

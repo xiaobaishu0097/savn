@@ -110,7 +110,7 @@ def main():
     manager = Manager()
     optimal_action = manager.dict()
     optimal_action.update(optimal_action_dict)
-    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_train.hdf5'
+    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_final_train.hdf5'
     glove_file = hdf5_to_dict(glove_file_path)
     # det_gt_path = './data/AI2thor_Combine_Dataset/Instance_Detection_Combine.pkl'
     # with open(det_gt_path, 'rb') as read_file:

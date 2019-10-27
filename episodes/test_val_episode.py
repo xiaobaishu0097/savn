@@ -23,7 +23,7 @@ class TestValEpisode(BasicEpisode):
         self.all_data = None
         self.all_data_enumerator = 0
 
-    def _new_episode(self, args, episode, glove):
+    def _new_episode(self, args, episode, glove, optimal_act):
         """ New navigation episode. """
         scene = episode["scene"]
 
@@ -54,6 +54,11 @@ class TestValEpisode(BasicEpisode):
         glove = glove[self.environment.controller.scene_name]
 
         self.glove_embedding = None
+
+        if optimal_act is not None:
+            self.optimal_actions = optimal_act[self.environment.controller.scene_name][self.task_data[0]]
+        else:
+            self.optimal_actions = None
 
         init_pos = '{}|{}|{}|{}'.format(
             # self.environment.controller.scene_name,
@@ -110,4 +115,4 @@ class TestValEpisode(BasicEpisode):
 
         episode = self.all_data[self.all_data_enumerator]
         self.all_data_enumerator += 1
-        self._new_episode(args, episode, glove)
+        self._new_episode(args, episode, glove, optimal_act)

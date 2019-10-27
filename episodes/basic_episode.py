@@ -51,6 +51,7 @@ class BasicEpisode(Episode):
         self.optimal_actions=None
 
         self.scene_states = []
+        self.detections = []
         if args.eval:
             random.seed(args.seed)
 
@@ -182,7 +183,10 @@ class BasicEpisode(Episode):
 
         # glove = Glove(os.path.join(args.glove_dir, self.environment.controller.scene_name, 'det_feature.hdf5'))
         glove = glove[self.environment.controller.scene_name]
-        self.optimal_actions = optimal_act[self.environment.controller.scene_name][self.task_data[0]]
+        if optimal_act is not None:
+            self.optimal_actions = optimal_act[self.environment.controller.scene_name][self.task_data[0]]
+        else:
+            self.optimal_actions = None
 
         self.glove_embedding = None
 
@@ -229,4 +233,5 @@ class BasicEpisode(Episode):
         # self.last_det = False
         # self.current_det = False
         self.det_frame = None
+        self.detections = []
         self._new_episode(args, scenes, possible_targets, targets, keep_obj, optimal_act=optimal_act, glove=glove)

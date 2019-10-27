@@ -50,6 +50,7 @@ class ThorAgent:
         self.action_space = args.action_space
 
         self.arrive = False
+        self.detections = []
 
     def sync_with_shared(self, shared_model):
         """ Sync with the shared model. """
