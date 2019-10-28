@@ -20,14 +20,18 @@ class BaseModel(torch.nn.Module):
 
         self.conv1 = nn.Conv2d(resnet_embedding_sz, 64, 1)
         self.maxp1 = nn.MaxPool2d(2, 2)
-        self.embed_glove = nn.Linear(19*262, 64*7*7)
+        # self.embed_glove = nn.Linear(19*262, 64*7*7)
         # self.embed_glove = nn.Linear(target_embedding_sz, 64)
         # self.embed_glove = nn.Conv2d(256, 64, 1, 1)
         self.embed_action = nn.Linear(action_space, 10)
         # self.embed_action = nn.Linear(10, 10)
-        self.graph = nn.Linear(19, 19)
 
-        pointwise_in_channels = 138
+        self.detection_appearance_linear = nn.Linear(512, 32)
+        self.detection_other_info_linear = nn.Linear(6, 17)
+        # self.graph = nn.Linear(19, 19)
+
+        # pointwise_in_channels = 138
+        pointwise_in_channels = 93
 
         self.pointwise = nn.Conv2d(pointwise_in_channels, 64, 1, 1)
 
@@ -75,31 +79,73 @@ class BaseModel(torch.nn.Module):
 
         # action_embedding_input = action_probs
         # target = target.view([95])
-        target = target.view([4978])
+        # target = target.view([4978])
+        target_appear = target[:, :512]
+        target_info = target[:, 512:]
 
         if params is None:
-            glove_embedding = F.relu(self.embed_glove(target))
-            # glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
-            glove_reshaped = glove_embedding.reshape(1, 64, 7, 7)
+            # glove_embedding = F.relu(self.embed_glove(target))
+            # # glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
+            # glove_reshaped = glove_embedding.reshape(1, 64, 7, 7)
+
+            target_appear = F.relu(self.detection_appearance_linear(target_appear))
+            target_info = F.relu(self.detection_other_info_linear(target_info))
+            target_embedding = torch.cat((target_appear, target_info), dim=1)
+
+            # Graph structure
+            # target_embedding = target_embedding.t()
+            # target_embedding = F.relu(self.graph(target_embedding))
+            # target_embedding = target_embedding.t()
+
+            target_embedding = target_embedding.reshape(1, 19, 7, 7)
 
             action_embedding = F.relu(self.embed_action(action_embedding_input))
             action_reshaped = action_embedding.view(1, 10, 1, 1).repeat(1, 1, 7, 7)
 
             image_embedding = F.relu(self.conv1(state))
             x = self.dropout(image_embedding)
-            x = torch.cat((x, glove_reshaped, action_reshaped), dim=1)
+            x = torch.cat((x, target_embedding, action_reshaped), dim=1)
             x = F.relu(self.pointwise(x))
             x = self.dropout(x)
             out = x.view(x.size(0), -1)
 
         else:
-            glove_embedding = F.relu(
+            target_appear = F.relu(
                 F.linear(
-                    target,
-                    weight=params["embed_glove.weight"],
-                    bias=params["embed_glove.bias"],
+                    target_appear,
+                    weight=params["detection_appearance_linear.weight"],
+                    bias=params["detection_appearance_linear.bias"],
                 )
             )
+            target_info = F.relu(
+                F.linear(
+                    target_info,
+                    weight=params["detection_other_info_linear.weight"],
+                    bias=params["detection_other_info_linear.bias"],
+                )
+            )
+            target_embedding = torch.cat((target_appear, target_info), dim=1)
+
+            # Graph structure
+            # target_embedding = target_embedding.t()
+            # target_embedding = F.relu(
+            #     F.linear(
+            #         target_embedding,
+            #         weight=params["graph.weight"],
+            #         bias=params["graph.bias"],
+            #     )
+            # )
+            # target_embedding = target_embedding.t()
+
+            target_embedding = target_embedding.reshape(1, 19, 7, 7)
+
+            # glove_embedding = F.relu(
+            #     F.linear(
+            #         target,
+            #         weight=params["embed_glove.weight"],
+            #         bias=params["embed_glove.bias"],
+            #     )
+            # )
 
             # glove_embedding = F.avg_pool2d(
             #     F.conv2d(
@@ -121,7 +167,7 @@ class BaseModel(torch.nn.Module):
             # glove_embedding = torch.randn(1,64,7,7).cuda()
 
             # glove_embedding = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
-            glove_embedding = glove_embedding.reshape(1, 64, 7, 7)
+            # glove_embedding = glove_embedding.reshape(1, 64, 7, 7)
 
             action_embedding = F.relu(
                 F.linear(
@@ -141,7 +187,7 @@ class BaseModel(torch.nn.Module):
             )
             x = self.dropout(image_embedding)
             # x = torch.cat((x, glove_reshaped, action_reshaped), dim=1)
-            x = torch.cat((x, glove_embedding, action_embedding), dim=1)
+            x = torch.cat((x, target_embedding, action_embedding), dim=1)
 
             x = F.relu(
                 F.conv2d(

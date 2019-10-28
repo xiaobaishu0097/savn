@@ -85,8 +85,8 @@ def nonadaptivea3c_val(
             # Make sure model is up to date.
             # player.sync_with_shared(shared_model)
             # Run episode for num_steps or until player is done.
-            # total_reward = run_episode(player, args, total_reward, model_options, False)
-            total_reward = run_episode_test(player, args, total_reward, model_options, False)
+            total_reward = run_episode(player, args, total_reward, model_options, False)
+            # total_reward = run_episode_test(player, args, total_reward, model_options, False)
             # Compute the loss.
             loss = compute_loss_ori(args, player, gpu_id, model_options)
             if not player.done:
