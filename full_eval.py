@@ -51,7 +51,7 @@ def main():
     manager = Manager()
     optimal_action = manager.dict()
     optimal_action.update(optimal_action_dict)
-    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_final_eval.hdf5'
+    glove_file_path = './data/AI2thor_Combine_Dataset/det_feature_512_eval.hdf5'
     glove_file = hdf5_to_dict(glove_file_path)
     print('Loading Success!')
 

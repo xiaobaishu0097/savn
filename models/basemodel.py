@@ -26,8 +26,10 @@ class BaseModel(torch.nn.Module):
         self.embed_action = nn.Linear(action_space, 10)
         # self.embed_action = nn.Linear(10, 10)
 
-        self.detection_appearance_linear = nn.Linear(512, 32)
-        self.detection_other_info_linear = nn.Linear(6, 17)
+        self.detection_appearance_linear_1 = nn.Linear(512, 128)
+        self.detection_other_info_linear_1 = nn.Linear(6, 19)
+        self.detection_other_info_linear_2 = nn.Linear(19, 19)
+        self.detection_appearance_linear_2 = nn.Linear(128, 49)
         # self.graph = nn.Linear(19, 19)
 
         # pointwise_in_channels = 138
@@ -88,16 +90,24 @@ class BaseModel(torch.nn.Module):
             # # glove_reshaped = glove_embedding.view(1, 64, 1, 1).repeat(1, 1, 7, 7)
             # glove_reshaped = glove_embedding.reshape(1, 64, 7, 7)
 
-            target_appear = F.relu(self.detection_appearance_linear(target_appear))
-            target_info = F.relu(self.detection_other_info_linear(target_info))
-            target_embedding = torch.cat((target_appear, target_info), dim=1)
-
+            target_appear = F.relu(self.detection_appearance_linear_1(target_appear))
+            # target_info = F.relu(self.detection_other_info_linear(target_info))
+            # target_embedding = torch.cat((target_appear, target_info), dim=1)
+            target_info = F.relu(self.detection_other_info_linear_1(target_info))
+            target_info = target_info.t()
+            target_info = F.relu(self.detection_other_info_linear_2(target_info))
+            target_info = target_info.t()
+            target_appear = target_appear.t()
+            target_appear = target_appear.mm(target_info)
+            target_appear = target_appear.t()
+            target_appear = F.relu(self.detection_appearance_linear_2(target_appear))
+            target_embedding = target_appear.reshape(1, 19, 7, 7)
             # Graph structure
             # target_embedding = target_embedding.t()
             # target_embedding = F.relu(self.graph(target_embedding))
             # target_embedding = target_embedding.t()
 
-            target_embedding = target_embedding.reshape(1, 19, 7, 7)
+            # target_embedding = target_embedding.reshape(1, 19, 7, 7)
 
             action_embedding = F.relu(self.embed_action(action_embedding_input))
             action_reshaped = action_embedding.view(1, 10, 1, 1).repeat(1, 1, 7, 7)
@@ -113,18 +123,46 @@ class BaseModel(torch.nn.Module):
             target_appear = F.relu(
                 F.linear(
                     target_appear,
-                    weight=params["detection_appearance_linear.weight"],
-                    bias=params["detection_appearance_linear.bias"],
+                    weight=params["detection_appearance_linear_1.weight"],
+                    bias=params["detection_appearance_linear_1.bias"],
                 )
             )
+            # target_info = F.relu(
+            #     F.linear(
+            #         target_info,
+            #         weight=params["detection_other_info_linear.weight"],
+            #         bias=params["detection_other_info_linear.bias"],
+            #     )
+            # )
+            # target_embedding = torch.cat((target_appear, target_info), dim=1)
+
             target_info = F.relu(
                 F.linear(
                     target_info,
-                    weight=params["detection_other_info_linear.weight"],
-                    bias=params["detection_other_info_linear.bias"],
+                    weight=params["detection_other_info_linear_1.weight"],
+                    bias=params["detection_other_info_linear_1.bias"],
                 )
             )
-            target_embedding = torch.cat((target_appear, target_info), dim=1)
+            target_info = target_info.t()
+            target_info = F.relu(
+                F.linear(
+                    target_info,
+                    weight=params["detection_other_info_linear_2.weight"],
+                    bias=params["detection_other_info_linear_2.bias"],
+                )
+            )
+            target_info = target_info.t()
+            target_appear = target_appear.t()
+            target_appear = target_appear.mm(target_info)
+            target_appear = target_appear.t()
+            target_appear = F.relu(
+                F.linear(
+                    target_appear,
+                    weight=params["detection_appearance_linear_2.weight"],
+                    bias=params["detection_appearance_linear_2.bias"],
+                )
+            )
+            target_embedding = target_appear.reshape(1, 19, 7, 7)
 
             # Graph structure
             # target_embedding = target_embedding.t()
@@ -137,7 +175,7 @@ class BaseModel(torch.nn.Module):
             # )
             # target_embedding = target_embedding.t()
 
-            target_embedding = target_embedding.reshape(1, 19, 7, 7)
+            # target_embedding = target_embedding.reshape(1, 19, 7, 7)
 
             # glove_embedding = F.relu(
             #     F.linear(
